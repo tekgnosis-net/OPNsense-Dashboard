@@ -1,3 +1,4 @@
 .env
 .venv/
 tests/e2e/.work/
+__pycache__/

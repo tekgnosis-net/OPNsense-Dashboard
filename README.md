@@ -20,6 +20,12 @@ see [Credits and history](#credits-and-history).
 - Firewall blocks: events, ports, protocols, top source IP and a GeoIP map
 - Suricata alerts (separate dashboard)
 
+![OPNsense dashboard](docs/images/opnsense.png)
+
+![Suricata dashboard](docs/images/opnsense-suricata.png)
+
+Screenshots show synthetic test data from `tests/e2e`.
+
 ## Requirements
 
 - **Firewall:** OPNsense 26.7.x (tested; older releases untested) with the

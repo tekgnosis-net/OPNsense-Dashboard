@@ -27,7 +27,7 @@ sh tests/run-static.sh    # every tests/static/check_*: lint, upstream refs, rep
 sh tests/run-unit.sh      # PHP plugin vs stubs of OPNsense 26.7.4 functions; temperature script vs a fake sysctl
 ```
 
-`sh tests/e2e/stack_smoke.sh` brings the whole stack up in Docker (compose project `opnsense-dash-test`, loopback ports 13000/18086/19000/11514, ~4 GB RAM), runs `graylog-init` twice and checks provisioning; `E2E_KEEP=1` leaves it running. It never touches other compose projects on the host. `tests/e2e/run.sh` (every dashboard query) arrives in a later phase. On the router, **as root** (testing as the `telegraf` user hides root-only failures):
+`sh tests/e2e/run.sh` is the end-to-end suite: it brings the whole stack up in Docker (compose project `opnsense-dash-test`, loopback ports 13000/18086/19000/11514, ~4 GB RAM), runs `stack_smoke.sh` (graylog-init twice, provisioning), seeds two synthetic firewalls, sends RFC5424 filterlog over UDP, runs **every panel and variable query** of both dashboards through Grafana's `/api/ds/query`, then repeats in metrics-only mode. `E2E_KEEP=1` leaves the stack running; `E2E_SCREENSHOTS=1` refreshes `docs/images/`. It never touches other compose projects on the host. On the router, **as root** (testing as the `telegraf` user hides root-only failures):
 
 ```sh
 /usr/local/bin/telegraf_pfifgw.php            # prints Influx line protocol
@@ -91,5 +91,7 @@ A mismatch on any of these produces empty panels, not errors:
 
 ## Editing dashboards
 
-- Dashboards are edited in the Grafana UI and exported as JSON. For hand edits, patch the structure with `jq` or Python and re-validate; don't run regex replacements over the whole file.
-- Template defaults reflect the original author's router (`WAN` = `igb0`); `docs/stack.md` tells users to adjust them.
+- The dashboards are migrated to Grafana 13 (timeseries, geomap, OpenSearch datasource). Edit in Grafana, export JSON (not "for sharing externally"), keep `${dataSource}`/`${ESdataSource}` and `v.defaultBucket`, normalize `\r\n` to `\n`. For hand edits, patch the structure with `jq` or Python; don't regex over the whole file.
+- `WAN`, `LAN` and `iface` return `device|description`; the variable regex `/^(?<value>[^|]+)\|(?<text>.*)$/` splits them. WAN = description starting with "WAN".
+- Rate graphs use `aggregateWindow(..., timeSrc: "_start")` before `derivative()`; the default `_stop` stamps the truncated last window at "now" and draws a false spike at the right edge.
+- `tests/static/check_dashboards.py` holds the invariants (each names the upstream issue it protects); `tests/e2e/run.sh` runs every query. Eyeball `docs/images/` after visual changes — a query can return data while a panel still renders nothing (e.g. a leftover `reduce` transform on the Geomap).

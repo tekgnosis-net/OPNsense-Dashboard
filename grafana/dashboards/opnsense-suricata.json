@@ -3,7 +3,9 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "uid": "-- Grafana --"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -21,10 +23,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 23,
-  "iteration": 1644864155168,
   "links": [],
-  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -40,6 +39,10 @@
       "type": "row"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${dataSource}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -50,7 +53,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               }
             ]
           }
@@ -69,6 +73,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -76,17 +81,19 @@
           "fields": "/^_value$/",
           "values": false
         },
+        "showPercentChange": false,
         "text": {},
-        "textMode": "auto"
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.3.3",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\r\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\r\n  |> group(columns: [\"_value\"])\r\n  |> count(column: \"_count\")\r\n  |> group()\r\n  |> sort(desc:true, columns: [\"_count\"])\r\n  |> limit(n:1)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
           "refId": "A"
         }
       ],
@@ -94,6 +101,10 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${dataSource}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -104,7 +115,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -127,6 +139,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -135,16 +148,18 @@
           "limit": 1,
           "values": true
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.3.3",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\r\n  |> map(fn: (r) => ({ r with _count: r[\"src_ip\"]}))\r\n  |> group(columns: [\"src_ip\"])\r\n  |> count(column: \"_count\")\r\n  |> group()\r\n  |> sort(desc:true, columns: [\"_count\"])\r\n  |> limit(n:1)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"src_ip\"]}))\n  |> group(columns: [\"src_ip\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
           "refId": "A"
         }
       ],
@@ -152,9 +167,14 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${dataSource}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "#73BF69",
             "mode": "palette-classic"
           },
           "custom": {
@@ -179,6 +199,7 @@
         "legend": {
           "displayMode": "table",
           "placement": "right",
+          "showLegend": true,
           "values": [
             "value"
           ]
@@ -191,18 +212,21 @@
           "fields": "",
           "values": true
         },
+        "sort": "desc",
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
-      "pluginVersion": "8.3.3",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\r\n  |> map(fn: (r) => ({ r with _count: r[\"dest_port\"]}))\r\n  |> group(columns: [\"dest_port\"])\r\n  |> count(column: \"_count\")\r\n  |> group()\r\n  |> sort(desc:true, columns: [\"_count\"])\r\n  |> limit(n: 10)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"dest_port\"]}))\n  |> group(columns: [\"dest_port\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n: 10)",
           "refId": "A"
         }
       ],
@@ -210,9 +234,14 @@
       "type": "piechart"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${dataSource}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "#73BF69",
             "mode": "palette-classic"
           },
           "custom": {
@@ -238,6 +267,7 @@
         "legend": {
           "displayMode": "table",
           "placement": "right",
+          "showLegend": true,
           "sortBy": "Value",
           "sortDesc": true,
           "values": [
@@ -252,17 +282,21 @@
           "fields": "",
           "values": true
         },
+        "sort": "desc",
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"proto\")\r\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\r\n  |> group(columns: [\"_value\"])\r\n  |> count(column: \"_count\")\r\n  |> group()\r\n  |> sort(desc:true, columns: [\"_count\"])",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"proto\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])",
           "refId": "A"
         }
       ],
@@ -270,6 +304,10 @@
       "type": "piechart"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${dataSource}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -280,7 +318,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -303,6 +342,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -310,16 +350,18 @@
           "fields": "/^_value$/",
           "values": true
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.3.3",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_signature\")\r\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\r\n  |> group(columns: [\"_value\"])\r\n  |> count(column: \"_count\")\r\n  |> group()\r\n  |> sort(desc:true, columns: [\"_count\"])\r\n  |> limit(n:1)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_signature\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
           "refId": "A"
         }
       ],
@@ -327,6 +369,10 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${dataSource}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -337,7 +383,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               },
               {
                 "color": "red",
@@ -360,6 +407,7 @@
         "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -367,16 +415,18 @@
           "fields": "/^dest_ip$/",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "8.3.3",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\r\n  |> map(fn: (r) => ({ r with _count: r[\"dest_ip\"]}))\r\n  |> group(columns: [\"dest_ip\"])\r\n  |> count(column: \"_count\")\r\n  |> group()\r\n  |> sort(desc:true, columns: [\"_count\"])\r\n  |> limit(n:1)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"dest_ip\"]}))\n  |> group(columns: [\"dest_ip\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
           "refId": "A"
         }
       ],
@@ -384,10 +434,14 @@
       "type": "stat"
     },
     {
-      "description": "",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${dataSource}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "#73BF69",
             "mode": "palette-classic"
           },
           "custom": {
@@ -414,6 +468,7 @@
         "legend": {
           "displayMode": "table",
           "placement": "right",
+          "showLegend": true,
           "values": [
             "value"
           ]
@@ -426,29 +481,36 @@
           "fields": "",
           "values": true
         },
+        "sort": "desc",
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\r\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\r\n  |> group(columns: [\"_value\"])\r\n  |> count(column: \"_count\")\r\n  |> group()\r\n  |> sort(desc:true, columns: [\"_count\"])\r\n  |> limit(n:10)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:10)",
           "refId": "A"
         }
       ],
       "title": "Top 10 Alert Categories",
-      "transformations": [],
       "type": "piechart"
     },
     {
-      "description": "",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${dataSource}"
+      },
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "#73BF69",
             "mode": "palette-classic"
           },
           "custom": {
@@ -481,7 +543,7 @@
                 "id": "custom.hideFrom",
                 "value": {
                   "legend": false,
-                  "tooltip": false,
+                  "tooltip": true,
                   "viz": true
                 }
               }
@@ -501,6 +563,7 @@
         "legend": {
           "displayMode": "table",
           "placement": "right",
+          "showLegend": true,
           "values": [
             "value"
           ]
@@ -513,25 +576,32 @@
           "fields": "/^_count$/",
           "values": true
         },
+        "sort": "desc",
         "tooltip": {
-          "mode": "single"
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
         }
       },
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: \"opnsense\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_signature\")\r\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\r\n  |> group(columns: [\"_value\"])\r\n  |> count(column: \"_count\")\r\n  |> group()\r\n  |> sort(desc:true, columns: [\"_count\"])\r\n  |> limit(n:10)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_signature\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:10)",
           "refId": "A"
         }
       ],
       "title": "Top 10 Alert Signatures",
-      "transformations": [],
       "type": "piechart"
     },
     {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "${dataSource}"
+      },
       "description": "Last 100 events, newest on top",
       "fieldConfig": {
         "defaults": {
@@ -540,14 +610,21 @@
           },
           "custom": {
             "align": "left",
-            "displayMode": "auto"
+            "cellOptions": {
+              "type": "auto"
+            },
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": 0
               }
             ]
           }
@@ -635,112 +712,78 @@
       },
       "id": 241,
       "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
+        "cellHeight": "sm",
         "frameIndex": 0,
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "8.3.3",
+      "pluginVersion": "13.2.2",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_signature\")\r\n  |> group()\r\n  |> sort(columns: [\"_time\"], desc: true)\r\n  |> limit(n:100)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"suricata\")\n  |> filter(fn: (r) => r._field == \"alert_signature\" or r._field == \"alert_action\" or r._field == \"alert_signature_id\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 100)",
           "refId": "A"
         }
       ],
       "title": "Alert Logs",
       "transformations": [
         {
-          "id": "labelsToFields",
-          "options": {
-            "keepLabels": [
-              "dest_ip",
-              "dest_port",
-              "src_ip",
-              "src_port"
-            ]
-          }
-        },
-        {
           "id": "organize",
           "options": {
             "excludeByName": {
-              "_field": true,
               "_measurement": true,
+              "_start": true,
+              "_stop": true,
               "event_type": true,
               "host": true,
               "path": true
             },
             "indexByName": {
-              "_field": 6,
-              "_measurement": 7,
               "_time": 0,
-              "_value": 1,
-              "dest_ip": 4,
-              "dest_port": 5,
-              "event_type": 8,
-              "host": 9,
-              "path": 10,
-              "src_ip": 2,
-              "src_port": 3
+              "alert_action": 1,
+              "alert_signature_id": 2,
+              "alert_signature": 3,
+              "src_ip": 4,
+              "src_port": 5,
+              "dest_ip": 6,
+              "dest_port": 7
             },
             "renameByName": {
               "_time": "Time",
-              "_value": "Alert Signature",
+              "alert_action": "Action",
+              "alert_signature_id": "SID",
               "alert_signature": "Signature",
-              "dest_ip": "Destination IP",
-              "dest_port": "Destination Port",
               "src_ip": "Source IP",
-              "src_port": "Source Port"
+              "src_port": "Source Port",
+              "dest_ip": "Destination IP",
+              "dest_port": "Destination Port"
             }
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "fields": {},
-            "sort": [
-              {
-                "desc": true,
-                "field": "Time"
-              }
-            ]
           }
         }
       ],
       "type": "table"
     }
   ],
-  "schemaVersion": 34,
-  "style": "dark",
+  "refresh": "",
+  "schemaVersion": 42,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": false,
           "text": "InfluxDB",
-          "value": "InfluxDB"
+          "value": "influxdb-opnsense"
         },
-        "hide": 0,
         "includeAll": false,
         "label": "InfluxDB",
-        "multi": false,
         "name": "dataSource",
         "options": [],
         "query": "influxdb",
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
         "type": "datasource"
       }
     ]
@@ -750,9 +793,8 @@
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
+  "timezone": "browser",
   "title": "OPNsense Suricata",
   "uid": "94raP_-7z",
-  "version": 5,
   "weekStart": ""
 }

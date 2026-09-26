@@ -63,7 +63,7 @@ The plugin uses only these OPNsense internals (core 26.7.4): `get_configured_int
 | InfluxDB | 2.9.1 (2.x only: InfluxDB 3 has no Flux) |
 | Graylog | 7.1.9 |
 | OpenSearch | 2.19.6 (Graylog 7.1 supports ≤ 2.19) |
-| MongoDB | 8.0 (needs AVX) |
+| MongoDB | 7.0 (needs AVX; 8.x exits on kernels it reads as 6.19–7.0.13, e.g. Ubuntu 26.04's `7.0.0-N`) |
 | geoipupdate | v8.0.0 |
 
 - **Profiles:** `logs` = the Graylog side (default via `COMPOSE_PROFILES`), `init` = `graylog-init`. An explicit `--profile` replaces `COMPOSE_PROFILES`, so pass `--profile logs --profile init` together when you need both.

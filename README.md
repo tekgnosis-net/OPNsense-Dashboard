@@ -75,7 +75,7 @@ for a metrics-only install.
 | InfluxDB | 2.9.1 (2.x only) |
 | Graylog | 7.1.9 |
 | OpenSearch | 2.19.6 |
-| MongoDB | 8.0 |
+| MongoDB | 7.0 |
 
 Versions are pinned in `.env.example`; see the Settings table to change them.
 
@@ -112,21 +112,21 @@ only while the service's data volume is empty.
 | `OPENSEARCH_PLUGIN_VERSION` | `2.34.4` | Grafana OpenSearch datasource plugin version |
 | `INFLUXDB_IMAGE` | `influxdb:2.9.1` | InfluxDB image (2.x only; InfluxDB 3 has no Flux) |
 | `GRAYLOG_IMAGE` | `graylog/graylog:7.1.9` | Graylog image |
-| `MONGO_IMAGE` | `mongo:8.0` | MongoDB image (Graylog 7.1 supports 7.x–8.2.x) |
+| `MONGO_IMAGE` | `mongo:7.0` | MongoDB image (Graylog 7.1 supports 7.x–8.2.x; 8.x refuses to start on Ubuntu 26.04's 7.0.0-N kernels) |
 | `OPENSEARCH_VERSION` | `2.19.6` | OpenSearch image tag and datasource version (Graylog 7.1 supports 1.1–2.19) |
 | `GEOIPUPDATE_IMAGE` | `ghcr.io/maxmind/geoipupdate:v8.0.0` | MaxMind updater image |
 | `INIT_IMAGE` | `alpine:3.24` | Image `graylog-init` runs in |
 | `GRAFANA_ADMIN_USER` | `admin` | Grafana admin user (first start) |
 | `GRAFANA_ADMIN_PASSWORD` | — (required) | Grafana admin password (first start) |
 | `INFLUXDB_ADMIN_USER` | `admin` | InfluxDB admin user (first start) |
-| `INFLUXDB_ADMIN_PASSWORD` | — (required) | InfluxDB admin password (first start) |
+| `INFLUXDB_ADMIN_PASSWORD` | — (required) | InfluxDB admin password, 8–72 characters (first start) |
 | `INFLUXDB_ORG` | `opnsense` | InfluxDB organization (first start) |
 | `INFLUXDB_BUCKET` | `opnsense` | InfluxDB bucket (first start) |
 | `INFLUXDB_RETENTION` | `30d` | How long InfluxDB keeps metrics, e.g. `30d`, `52w`, `0` = forever (first start; not validated) |
 | `INFLUXDB_ADMIN_TOKEN` | — (required) | InfluxDB admin token, `openssl rand -hex 32` (first start) |
 | `INFLUXDB_GRAFANA_TOKEN` | admin token | Token Grafana reads with; set a read-only token to limit access |
 | `GRAYLOG_ADMIN_PASSWORD` | — (required) | Graylog `admin` password; also used by `graylog-init` |
-| `GRAYLOG_PASSWORD_SECRET` | — (required) | Graylog password secret, `openssl rand -hex 48` |
+| `GRAYLOG_PASSWORD_SECRET` | — (required) | Graylog password secret, at least 16 characters; `openssl rand -hex 48` |
 | `GRAYLOG_EXTERNAL_URI` | `http://127.0.0.1:9000/` | URL you open Graylog at |
 | `GRAYLOG_HEAP` | `1g` | Graylog Java heap (not validated; 512m–4g sensible) |
 | `OPENSEARCH_HEAP` | `1g` | OpenSearch Java heap (not validated; 512m–half of RAM) |

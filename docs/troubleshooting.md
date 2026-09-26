@@ -91,6 +91,21 @@ reach InfluxDB, does the syslog reach Graylog, and does Grafana query it?
 - **mongodb exits with code 132 or logs an AVX warning.** The CPU lacks AVX.
   On Proxmox, set the VM CPU type to `x86-64-v3` or `host`; otherwise use
   metrics-only mode (`COMPOSE_PROFILES=`) (#45, #37).
+- **InfluxDB keeps restarting and logs `passwords must be between 8 and 72
+  characters long`.** `INFLUXDB_ADMIN_PASSWORD` is too short or too long. Fix it
+  in `.env` and run `docker compose up -d`; setup never completed, so nothing is
+  lost.
+- **Graylog won't start: `The minimum length for "password_secret" is 16
+  characters`.** Set `GRAYLOG_PASSWORD_SECRET` to at least 16 characters
+  (`openssl rand -hex 48`).
+- **mongodb keeps restarting and logs `MongoDB cannot start: Linux kernel
+  versions 6.19 and newer has a known incompatibility`.** MongoDB 8.x refuses
+  kernels it reads as 6.19–7.0.13, which includes Ubuntu 26.04's `7.0.0-N`
+  kernels (MongoDB SERVER-121912). Use the default `MONGO_IMAGE=mongo:7.0`,
+  which Graylog 7.1 supports. Switching is safe while the MongoDB volume is
+  still empty. MongoDB 7.0 cannot open a database that 8.0 created; in that
+  case recreate the `mongodb_data` volume (this resets Graylog's configuration)
+  and run `graylog-init` again.
 - **Graylog won't start with a journal or disk preflight error.** Free disk
   space or lower `GRAYLOG_JOURNAL_MAX_SIZE` (#50).
 - **Graylog won't start with a missing `graylog.conf`.** A host directory

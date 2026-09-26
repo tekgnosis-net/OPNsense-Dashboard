@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The project uses
 [Semantic Versioning](https://semver.org/). Issue numbers (#n) refer to the
 upstream repository bsmithio/OPNsense-Dashboard, where they were reported.
 
+## [2.0.1] - 2026-09-27
+
+### Fixed
+- MongoDB now defaults to 7.0 (`MONGO_IMAGE=mongo:7.0`). MongoDB 8.x refuses to
+  start on kernels it reads as 6.19–7.0.13, which includes Ubuntu 26.04's
+  `7.0.0-N` kernels (MongoDB SERVER-121912); Graylog 7.1 supports 7.x.
+- Documented the minimum password lengths the services enforce at first start:
+  InfluxDB admin password 8–72 characters, Graylog password secret at least 16.
+
 ## [2.0.0] - 2026-09-27
 
 First release as an independent project; see [NOTICE](NOTICE) for its

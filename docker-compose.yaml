@@ -59,7 +59,7 @@ services:
       start_period: 60s
 
   mongodb:
-    image: ${MONGO_IMAGE:-mongo:8.0}
+    image: ${MONGO_IMAGE:-mongo:7.0}
     profiles: [logs]
     restart: unless-stopped
     environment:

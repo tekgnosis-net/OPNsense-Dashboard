@@ -43,6 +43,12 @@ missing_tz=$(jq -r '[.services | to_entries[] | select(.value.environment.TZ == 
 grep -o '[$]{[A-Z_]*' docker-compose.yaml | cut -c3- | sort -u | while read -r var; do
     grep -q "^$var=" .env.example || fail "\${$var} is used in docker-compose.yaml but missing from .env.example"
 done
+# MongoDB 8.x refuses to start on kernels it reads as 6.19-7.0.13, which includes
+# Ubuntu 26.04's "7.0.0-N" kernels even when the upstream base is 7.0.14; 7.0 is
+# unaffected and supported by Graylog 7.1.
+grep -qx 'MONGO_IMAGE=mongo:7.0' .env.example || fail "MONGO_IMAGE in .env.example must default to mongo:7.0"
+grep -q 'image: [$]{MONGO_IMAGE:-mongo:7.0}' docker-compose.yaml || fail "docker-compose.yaml must default MONGO_IMAGE to mongo:7.0"
+[ "$(jq -r '.services.mongodb.image' "$tmp/all.json")" = "mongo:7.0" ] || fail "mongodb must render as mongo:7.0"
 # geoipupdate must keep retrying until a new MaxMind key activates (final review #2).
 [ "$(jq -r '.services.geoipupdate.restart' "$tmp/all.json")" = "unless-stopped" ] \
     || fail "geoipupdate must use restart: unless-stopped"

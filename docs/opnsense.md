@@ -1,6 +1,6 @@
 # OPNsense (router) setup
 
-Tested with OPNsense 26.7.x. Older releases are untested.
+Written for OPNsense 26.7.x, against the 26.7.4 source. Older releases are untested.
 
 This page sets up the firewall side:
 - Telegraf sends metrics to InfluxDB.

@@ -56,6 +56,9 @@ reach InfluxDB, does the syslog reach Graylog, and does Grafana query it?
     licence key. New keys take a few minutes to activate (#48, #58, #62, #71).
   - Test a lookup: Graylog > System > Lookup Tables > GeoIP > "Test lookup"
     with a public IP.
+  - geoipupdate keeps retrying (about once a minute) until the key works.
+    Without MaxMind credentials it logs an error each time; run
+    `docker compose stop geoipupdate` if you don't want the map.
 - **"Bad Gateway" on a datasource.** Keep the provisioned service-name URLs
   (`http://opensearch:9200`); OpenSearch isn't published to the host (#51).
 - **"Save & test" on the OpenSearch datasource says
@@ -122,10 +125,12 @@ from(bucket: v.defaultBucket)
   |> limit(n: 10)
 ```
 
-To delete one measurement (replace org, bucket, token and measurement):
+To delete one measurement, replace `opnsense` with your `INFLUXDB_BUCKET` and
+`temperature` with the measurement. The `influx` CLI inside the container is
+already configured with your organization and admin token:
 
 ```sh
-docker compose exec influxdb influx delete --org "$INFLUXDB_ORG" --bucket "$INFLUXDB_BUCKET" \
-  --token "$INFLUXDB_ADMIN_TOKEN" --start 1970-01-01T00:00:00Z --stop 2100-01-01T00:00:00Z \
+docker compose exec influxdb influx delete --bucket opnsense \
+  --start 1970-01-01T00:00:00Z --stop 2100-01-01T00:00:00Z \
   --predicate '_measurement="temperature"'
 ```

@@ -147,7 +147,8 @@ services:
   geoipupdate:
     image: ${GEOIPUPDATE_IMAGE:-ghcr.io/maxmind/geoipupdate:v8.0.0}
     profiles: [logs]
-    restart: on-failure:10
+    # Keep retrying: a new MaxMind key can take minutes to activate.
+    restart: unless-stopped
     environment:
       TZ: ${TZ:-Etc/UTC}
       GEOIPUPDATE_ACCOUNT_ID: ${MAXMIND_ACCOUNT_ID:-}
@@ -172,6 +173,7 @@ services:
       CONTENT_PACK: /init/OPNsense-pack.json
       GEOIP_FILE: /geoip/GeoLite2-Country.mmdb
       GEOIP_WAIT_SECONDS: ${GEOIP_WAIT_SECONDS:-600}
+      GRAYLOG_INIT_TIMEOUT_SECONDS: ${GRAYLOG_INIT_TIMEOUT_SECONDS:-300}
       GRAYLOG_INDEX_ROTATION: ${GRAYLOG_INDEX_ROTATION:-P1D}
       GRAYLOG_INDEX_MAX_COUNT: ${GRAYLOG_INDEX_MAX_COUNT:-30}
     volumes:

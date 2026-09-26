@@ -19,6 +19,14 @@ out=$(compose run --rm -e GEOIP_WAIT_SECONDS=3 graylog-init) || fail "graylog-in
 echo "$out"
 echo "$out" | grep -q "WARNING: .*GeoLite2-Country.mmdb not found" \
     || fail "graylog-init did not warn about the missing GeoIP database"
+# Graylog is configured first; the optional GeoIP wait is announced and comes last.
+echo "$out" | grep -q "waiting up to 3s for .*GeoLite2-Country.mmdb" \
+    || fail "graylog-init did not announce the GeoIP wait"
+configured=$(echo "$out" | grep -n "created index set" | head -n1 | cut -d: -f1)
+warned=$(echo "$out" | grep -n "WARNING: " | head -n1 | cut -d: -f1)
+if [ -z "$configured" ] || [ -z "$warned" ] || [ "$configured" -gt "$warned" ]; then
+    fail "graylog-init must configure Graylog before waiting for the GeoIP database"
+fi
 
 say "GeoIP lookups recover once the database appears, without a restart"
 install_mmdb

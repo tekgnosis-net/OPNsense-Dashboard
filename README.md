@@ -54,8 +54,8 @@ for a metrics-only install.
 
 ## Requirements
 
-- **Firewall:** OPNsense 26.7.x (tested; older releases untested) with the
-  os-telegraf plugin.
+- **Firewall:** OPNsense 26.7.x with the os-telegraf plugin. The collectors
+  are written against the OPNsense 26.7.4 source; older releases are untested.
 - **Monitoring host:** Docker Engine with Compose v2, about 4 GB RAM for the
   full stack (1 GB for metrics only), and disk for InfluxDB and OpenSearch
   (see [docs/stack.md](docs/stack.md#storage)).
@@ -69,7 +69,7 @@ for a metrics-only install.
 
 | Component | Version |
 |---|---|
-| OPNsense | 26.7.x (tested with 26.7.4); older releases untested |
+| OPNsense | 26.7.x (written against the 26.7.4 source); older releases untested |
 | os-telegraf | 1.12.x |
 | Grafana | 13.2.2 |
 | InfluxDB | 2.9.1 (2.x only) |
@@ -122,7 +122,7 @@ only while the service's data volume is empty.
 | `INFLUXDB_ADMIN_PASSWORD` | — (required) | InfluxDB admin password (first start) |
 | `INFLUXDB_ORG` | `opnsense` | InfluxDB organization (first start) |
 | `INFLUXDB_BUCKET` | `opnsense` | InfluxDB bucket (first start) |
-| `INFLUXDB_RETENTION` | `30d` | How long InfluxDB keeps metrics, e.g. `30d`, `52w`, `0` = forever (first start) |
+| `INFLUXDB_RETENTION` | `30d` | How long InfluxDB keeps metrics, e.g. `30d`, `52w`, `0` = forever (first start; not validated) |
 | `INFLUXDB_ADMIN_TOKEN` | — (required) | InfluxDB admin token, `openssl rand -hex 32` (first start) |
 | `INFLUXDB_GRAFANA_TOKEN` | admin token | Token Grafana reads with; set a read-only token to limit access |
 | `GRAYLOG_ADMIN_PASSWORD` | — (required) | Graylog `admin` password; also used by `graylog-init` |
@@ -135,8 +135,9 @@ only while the service's data volume is empty.
 | `GRAYLOG_INDEX_MAX_COUNT` | `30` | Firewall log indices kept, clamped 1–3650 (applied when `graylog-init` creates the index set) |
 | `MAXMIND_ACCOUNT_ID` | empty | MaxMind account ID for GeoLite2 |
 | `MAXMIND_LICENSE_KEY` | empty | MaxMind licence key |
-| `GEOIP_UPDATE_HOURS` | `72` | GeoIP database refresh interval in hours |
+| `GEOIP_UPDATE_HOURS` | `72` | GeoIP database refresh interval in hours (not validated; 24–168 sensible) |
 | `GEOIP_WAIT_SECONDS` | `600` | How long `graylog-init` waits for the first GeoIP download, clamped 0–3600 |
+| `GRAYLOG_INIT_TIMEOUT_SECONDS` | `300` | How long `graylog-init` waits for the Graylog API, clamped 30–3600 |
 
 The firewall-side exec timeout (`timeout = "10s"`) lives in
 `opnsense/telegraf.d/custom.conf`, which is installed on the firewall.

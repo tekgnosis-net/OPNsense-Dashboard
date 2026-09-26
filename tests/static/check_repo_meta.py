@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Repository metadata required by the v2 de-fork (spec §5.1)."""
 import pathlib
+import re
+import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -37,6 +39,25 @@ need("docs/troubleshooting.md", "RFC5424", "Run as Root", "AVX", "GRAYLOG_JOURNA
 need("README.md", "## Supported versions", "## How it works", "```mermaid", "CHANGELOG.md",
      "docs/images/opnsense.png")
 need(".github/workflows/ci.yml", "tests/run-static.sh", "tests/run-unit.sh", "tests/e2e/run.sh")
+
+
+def forbid(path, pattern, why):
+    text = (ROOT / path).read_text()
+    if re.search(pattern, text, re.M):
+        errors.append(f"{path}: {why}")
+
+
+# The router side has not run on a live OPNsense yet (final review #4, spec §6.6).
+forbid("README.md", r"\(tested", "claims OPNsense testing that has not happened yet")
+forbid("docs/opnsense.md", r"^Tested with", "claims OPNsense testing that has not happened yet")
+# The influx CLI in the container is already configured; host variables would be empty
+# and put the token in shell history (final review #12a).
+forbid("docs/troubleshooting.md", r'--token "\$INFLUXDB_ADMIN_TOKEN"', "influx delete must not use host variables")
+# No build artefacts in the repository (final review #6).
+tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+for name in tracked:
+    if "__pycache__/" in name or name.endswith(".pyc"):
+        errors.append(f"tracked build artefact: {name}")
 
 for error in errors:
     print(f"FAIL: {error}", file=sys.stderr)

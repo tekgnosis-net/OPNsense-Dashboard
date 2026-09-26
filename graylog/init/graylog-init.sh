@@ -4,6 +4,7 @@
 #   docker compose run --rm graylog-init
 # Env (set by docker-compose.yaml): GRAYLOG_URL, GRAYLOG_ADMIN_USER,
 # GRAYLOG_ADMIN_PASSWORD, CONTENT_PACK, GEOIP_FILE, GEOIP_WAIT_SECONDS (0-3600),
+# GRAYLOG_INIT_TIMEOUT_SECONDS (30-3600),
 # GRAYLOG_INDEX_ROTATION (ISO-8601 period), GRAYLOG_INDEX_MAX_COUNT (1-3650).
 set -eu
 # shellcheck disable=SC3040  # busybox ash (alpine) supports pipefail
@@ -24,6 +25,7 @@ clamp() { # VALUE MIN MAX DEFAULT
     if [ "$1" -lt "$2" ]; then echo "$2"; elif [ "$1" -gt "$3" ]; then echo "$3"; else echo "$1"; fi
 }
 GEOIP_WAIT=$(clamp "${GEOIP_WAIT_SECONDS:-600}" 0 3600 600)
+INIT_TIMEOUT=$(clamp "${GRAYLOG_INIT_TIMEOUT_SECONDS:-300}" 30 3600 300)
 MAX_INDICES=$(clamp "${GRAYLOG_INDEX_MAX_COUNT:-30}" 1 3650 30)
 ROTATION=${GRAYLOG_INDEX_ROTATION:-P1D}
 case "$ROTATION" in
@@ -44,27 +46,15 @@ api() { # METHOD PATH [BODY | @FILE] -> response body; fails on HTTP errors
 }
 
 log "waiting for Graylog at $GRAYLOG_URL"
-tries=0
+waited=0
 until [ "$(curl -fsS "$GRAYLOG_URL/api/system/lbstatus" 2>/dev/null)" = ALIVE ]; do
-    tries=$((tries + 1))
-    [ "$tries" -le 100 ] || { log "Graylog did not become ready within 300s"; exit 1; }
+    [ "$waited" -lt "$INIT_TIMEOUT" ] || { log "Graylog did not become ready within ${INIT_TIMEOUT}s"; exit 1; }
     sleep 3
+    waited=$((waited + 3))
 done
 api GET /system >/dev/null || { log "cannot log in as $GRAYLOG_ADMIN_USER: check GRAYLOG_ADMIN_PASSWORD"; exit 1; }
 
-# 1. GeoIP database (new MaxMind keys can take minutes to activate).
-waited=0
-while [ ! -s "$GEOIP_FILE" ] && [ "$waited" -lt "$GEOIP_WAIT" ]; do
-    sleep 5
-    waited=$((waited + 5))
-done
-if [ -s "$GEOIP_FILE" ]; then
-    log "GeoIP database present"
-else
-    log "WARNING: $GEOIP_FILE not found after ${GEOIP_WAIT}s; the map stays empty until geoipupdate downloads it (no restart needed)"
-fi
-
-# 2. Index set for the firewall log.
+# 1. Index set for the firewall log.
 index_set_id=$(api GET /system/indices/index_sets \
     | jq -r --arg p "$INDEX_PREFIX" '[.index_sets[] | select(.index_prefix == $p) | .id][0] // empty')
 if [ -z "$index_set_id" ]; then
@@ -87,7 +77,7 @@ else
     log "index set $INDEX_PREFIX already exists"
 fi
 
-# 3. Content pack: upload once, install once (a second install duplicates inputs).
+# 2. Content pack: upload once, install once (a second install duplicates inputs).
 pack_id=$(jq -r .id "$CONTENT_PACK")
 pack_rev=$(jq -r .rev "$CONTENT_PACK")
 uploaded=$(api GET /system/content_packs \
@@ -105,7 +95,7 @@ else
     log "content pack already installed"
 fi
 
-# 4. Stream: write to our index set, not the default one, and run it
+# 3. Stream: write to our index set, not the default one, and run it
 #    (streams from content packs start paused).
 stream_id=$(api GET /streams \
     | jq -r --arg t "$STREAM_TITLE" '[.streams[] | select(.title == $t) | .id][0] // empty')
@@ -121,7 +111,7 @@ if [ "$(echo "$stream" | jq -r .disabled)" = true ]; then
     log "stream resumed"
 fi
 
-# 5. GeoIP pipeline connected to the stream (the pack normally does this).
+# 4. GeoIP pipeline connected to the stream (the pack normally does this).
 pipeline_id=$(api GET /system/pipelines/pipeline \
     | jq -r '[.[] | select(.title == "GeoIP") | .id][0] // empty')
 [ -n "$pipeline_id" ] || { log "GeoIP pipeline not found"; exit 1; }
@@ -135,7 +125,7 @@ if ! echo "$connections" | jq -e --arg s "$stream_id" --arg p "$pipeline_id" \
     log "connected the GeoIP pipeline to the stream"
 fi
 
-# 6. Processing order: extractors (filter chain), then stream rules, then
+# 5. Processing order: extractors (filter chain), then stream rules, then
 #    pipelines (the GeoIP pipeline hangs off the stream).
 want='["org.graylog2.messageprocessors.MessageFilterChainProcessor","org.graylog2.messageprocessors.StreamMatcherFilterProcessor","org.graylog.plugins.pipelineprocessor.processors.PipelineInterpreter"]'
 config=$(api GET /system/messageprocessors/config)
@@ -151,6 +141,23 @@ else
            disabled_processors: [.disabled_processors[] | select(. as $c | $want | index($c) | not)]}')
     api PUT /system/messageprocessors/config "$body" >/dev/null
     log "message processors set to: filter chain, stream rules, pipelines"
+fi
+
+# 6. GeoIP database, last: everything above works without it, and new MaxMind
+#    keys can take minutes to activate. The lookup adapter picks the file up
+#    whenever it appears.
+if [ ! -s "$GEOIP_FILE" ]; then
+    log "waiting up to ${GEOIP_WAIT}s for $GEOIP_FILE (downloaded by geoipupdate)"
+    waited=0
+    while [ ! -s "$GEOIP_FILE" ] && [ "$waited" -lt "$GEOIP_WAIT" ]; do
+        sleep 5
+        waited=$((waited + 5))
+    done
+fi
+if [ -s "$GEOIP_FILE" ]; then
+    log "GeoIP database present"
+else
+    log "WARNING: $GEOIP_FILE not found after ${GEOIP_WAIT}s; the map stays empty until geoipupdate downloads it (no restart needed; check 'docker compose logs geoipupdate')"
 fi
 
 log "done"

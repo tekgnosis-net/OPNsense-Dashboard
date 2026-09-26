@@ -144,6 +144,10 @@ for name, dash in (("opnsense.json", main), ("opnsense-suricata.json", suricata)
                     errors.append(f"{name} panel {p['id']}: aggregateWindow before derivative needs "
                                   f'timeSrc: "_start" (right-edge rate spike)')
 
+# Per-interface summary tables need room for the header and one row (final review #8).
+for pid in (28, 52):
+    need(P[pid]["gridPos"]["h"] >= 4, f"panel {pid}: Interface Summary is clipped (gridPos.h < 4)")
+
 # Light mode stays readable (#25).
 for pid in (28, 32, 46, 52):
     steps = P[pid]["fieldConfig"]["defaults"].get("thresholds", {}).get("steps", [])

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Send synthetic RFC5424 filterlog lines to Graylog over UDP (spec §6.4).
-Timestamps carry a +10:00 offset (Review Focus 4). Source IPs are in MaxMind's
+Timestamps carry a -05:00 offset, which differs from both UTC and the e2e
+stack's TZ (Australia/Brisbane), so a mishandled offset moves messages out of
+the query window (Review Focus 4). Source IPs are in MaxMind's
 test database: 2.125.160.216 and 81.2.69.160 GB, 89.160.20.112 SE,
 216.160.83.56 US, 2001:218::1 JP, 2001:220::1 KR.
 Prints the expected counts as JSON. Env: ROOT, SYSLOG_PORT."""
@@ -27,7 +29,7 @@ PLAN = [  # host, ipver, proto, source, dport, action, count
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 port = int(os.environ["SYSLOG_PORT"])
-tz = timezone(timedelta(hours=10))
+tz = timezone(timedelta(hours=-5))
 seq = 0
 for host, ipver, proto, src, dport, action, count in PLAN:
     for i in range(count):

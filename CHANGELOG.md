@@ -12,6 +12,8 @@ upstream repository bsmithio/OPNsense-Dashboard, where they were reported.
   `7.0.0-N` kernels (MongoDB SERVER-121912); Graylog 7.1 supports 7.x.
 - Documented the minimum password lengths the services enforce at first start:
   InfluxDB admin password 8–72 characters, Graylog password secret at least 16.
+- Documented how to resolve a host port conflict (`port is already allocated`)
+  with the `*_PORT` settings.
 
 ## [2.0.0] - 2026-09-27
 

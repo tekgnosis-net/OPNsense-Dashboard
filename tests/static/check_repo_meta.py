@@ -31,6 +31,13 @@ need("CLAUDE.md", "tests/run-static.sh", "opnsense/bin/telegraf_pfifgw.php")
 need("docs/opnsense.md", "Run as Root", "RFC5424", "Intrusion Detection Alerts",
      "telegraf --test", "opnsense/ansible", "Thermal Sensors")
 
+need("CHANGELOG.md", "## [2.0.0]", "### Planned (2.1)", "CARP", "bsmithio/OPNsense-Dashboard")
+need("docs/troubleshooting.md", "RFC5424", "Run as Root", "AVX", "GRAYLOG_JOURNAL_MAX_SIZE",
+     "pluginctl -r return_gateways_status", "reset-admin-password", "visudo", "Index not found")
+need("README.md", "## Supported versions", "## How it works", "```mermaid", "CHANGELOG.md",
+     "docs/images/opnsense.png")
+need(".github/workflows/ci.yml", "tests/run-static.sh", "tests/run-unit.sh", "tests/e2e/run.sh")
+
 for error in errors:
     print(f"FAIL: {error}", file=sys.stderr)
 print("ok: repository metadata present" if not errors else "")

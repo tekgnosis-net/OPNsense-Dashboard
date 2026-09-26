@@ -1,81 +1,131 @@
 # Troubleshooting
 
+Work from the firewall towards Grafana: does Telegraf produce data, does it
+reach InfluxDB, does the syslog reach Graylog, and does Grafana query it?
 
-### Telegraf Plugins
+## The dashboard is empty, or the Host list has no entries
 
-- You can run most plugins from a shell/ssh session to verify the output. (the environment vars may be different when telegraf is executing the plugin)
-- If you're copying from a windows system, make sure the [CRLF is correct](https://www.cyberciti.biz/faq/howto-unix-linux-convert-dos-newlines-cr-lf-unix-text-format/)
-- The below command should display unix line endings (\n or LF) as $ and Windows line endings (\r\n or CRLF) as ^M$.
+- **Run as Root is off.** Turn on Services > Telegraf > General > Run as
+  Root, then Save and Apply.
+  - The `pf` input and the collectors need root.
+  - Typical errors when it's off: `pf` "Permission denied", `flock()`
+    errors, gateway values all 0 (#1, #86, #89).
+- Test **as root** on the firewall:
+  ```sh
+  telegraf --test --config /usr/local/etc/telegraf.conf --config-directory /usr/local/etc/telegraf.d
+  ```
+  Testing as the `telegraf` user hides exactly these failures.
+- **Telegraf logs `/write?db=telegraf` to localhost.** The InfluxDB v1
+  output is enabled. Disable it, and set the Influx v2 URL to the monitoring
+  host, not `localhost` (#25).
+- **Check InfluxDB receives data.** In Grafana > Explore (InfluxDB), run:
+  ```
+  import "influxdata/influxdb/schema"
+  schema.measurements(bucket: v.defaultBucket)
+  ```
+  You should see `system`, `cpu`, `net`, `pf`, `interface`, `gateways` and
+  others.
 
-`cat -e /usr/local/bin/telegraf_pfifgw.php`
+## `exec: command timed out`
 
-### Telegraf Troubleshooting
-If you get no good output from running the plugin directly, try the following command before moving to the step below.
+- Check that `timeout = "10s"` is in `/usr/local/etc/telegraf.d/custom.conf`.
+- Time the collector: `time /usr/local/bin/telegraf_pfifgw.php` (#83).
 
-`sudo su -m telegraf -c 'telegraf --test --config /usr/local/etc/telegraf.conf --config-directory /usr/local/etc/telegraf.d'`
+## Gateway RTT or loss is empty
 
-To troubleshoot plugins further, enable Debug Log and disable Quiet Log in the Telegraf GUI then click Save. Run the above command again.
+- Monitoring may be disabled for that gateway: System > Gateways >
+  Configuration, "Disable Gateway Monitoring" is ticked.
+- Or dpinger has no data yet. Check its view with:
+  `pluginctl -r return_gateways_status` (#64, #39).
+- The values are dpinger's rolling average to the monitor IP. If your ISP
+  deprioritises ICMP, choose a different monitor IP (#79).
 
-`sudo su -m telegraf -c 'telegraf --test --config /usr/local/etc/telegraf.conf --config-directory /usr/local/etc/telegraf.d'`
+## The Firewall row or the map is empty
 
+- **RFC5424 is off on the remote logging target**, or the port doesn't match
+  `SYSLOG_PORT` (#47, #49, #57). The extractors only match RFC5424 messages.
+- **Check Graylog receives the log.** In Graylog > Search, run
+  `application_name:filterlog` over the last 5 minutes.
+  - If nothing arrives, check the OPNsense remote target and any firewall in
+    between.
+  - If messages arrive without `src-ip`, `action` and so on, check that
+    `graylog-init` ran (`docker compose run --rm graylog-init`) and that the
+    target sends RFC5424.
+- **Map empty, other panels fine.**
+  - Check `docker compose logs geoipupdate` and your MaxMind account ID and
+    licence key. New keys take a few minutes to activate (#48, #58, #62, #71).
+  - Test a lookup: Graylog > System > Lookup Tables > GeoIP > "Test lookup"
+    with a public IP.
+- **"Bad Gateway" on a datasource.** Keep the provisioned service-name URLs
+  (`http://opensearch:9200`); OpenSearch isn't published to the host (#51).
+- **"Save & test" on the OpenSearch datasource says
+  `Index not found: opnsense_filterlog_*`.** This is expected. The plugin's
+  test can't resolve wildcard index patterns
+  ([grafana/opensearch-datasource#888](https://github.com/grafana/opensearch-datasource/issues/888)),
+  but queries and dashboards work. Don't change the index pattern.
 
-### InfluxDB
-When in doubt, run a few queries to see if the data you are looking for is being populated.
-I recommend doing this in Grafana's Explore tab.
+## WAN panels empty after renaming or re-assigning interfaces
 
-### View measurements
-    import "influxdata/influxdb/schema"
+- WAN is every interface whose OPNsense description starts with "WAN" (#81,
+  #56). Rename the interface, or edit the WAN variable (Dashboard settings >
+  Variables > WAN) and save.
 
-    schema.measurements(bucket: "opnsense")
+## Active Users shows 0
 
-### View field values
+- Expected when nobody is logged in to a shell (SSH or console). Web GUI
+  sessions aren't counted (#42).
 
-    from(bucket: "opnsense")
-      |> range(start: -24h)
-      |> filter(fn: (r) => r["_measurement"] == "system")
-      |> limit(n:10)
+## Suricata dashboard is empty
 
-### How to drop an InfluxDB v2 measurement
+- Check that Intrusion Detection is enabled and **Intrusion Detection Alerts**
+  is ticked on the Telegraf Input tab (OPNsense 26.1 and later; #88).
+- Check that alerts exist: `tail /var/log/suricata/eve.json` on the firewall.
+- To generate test alerts, [tmNIDS](https://github.com/3CORESec/testmynids.org)
+  triggers common signatures. It needs `bash` (`pkg install bash`).
 
-You must access your InfluxDB instance's shell to do this.
+## Monitoring host
 
-To do so run
+- **mongodb exits with code 132 or logs an AVX warning.** The CPU lacks AVX.
+  On Proxmox, set the VM CPU type to `x86-64-v3` or `host`; otherwise use
+  metrics-only mode (`COMPOSE_PROFILES=`) (#45, #37).
+- **Graylog won't start with a journal or disk preflight error.** Free disk
+  space or lower `GRAYLOG_JOURNAL_MAX_SIZE` (#50).
+- **Graylog won't start with a missing `graylog.conf`.** A host directory
+  was bind-mounted over `/usr/share/graylog/data`. Use the named volume
+  (#68).
+- **OpenSearch indices became read-only.** The disk went past 95% full. Free
+  space, then run:
+  ```sh
+  docker compose exec opensearch curl -XPUT 'localhost:9200/_all/_settings' -H 'Content-Type: application/json' -d '{"index.blocks.read_only_allow_delete": null}'
+  ```
+- **A password changed in `.env` had no effect.** "First start" settings
+  only apply to an empty volume (#65).
+  - Grafana: `docker compose exec grafana grafana cli admin reset-admin-password '<new>'`
+  - InfluxDB: use its UI.
+  - `GRAYLOG_ADMIN_PASSWORD` applies on the next `docker compose up -d graylog`.
+- **Compose commands that name `--profile init` fail with "depends on
+  undefined service graylog".** An explicit `--profile` replaces
+  `COMPOSE_PROFILES`, so name both profiles: `--profile logs --profile init`.
 
-`sudo docker exec -it influxdb /bin/bash`
+## Upgrading from bsmithio/OPNsense-Dashboard
 
-on your docker host.
+- Run the Ansible playbook, or follow "Upgrading" in [opnsense.md](opnsense.md).
+- Remove old sudoers lines with `visudo`, not `printf`: the root shell
+  (tcsh) expands `!` even inside quotes (#63).
 
-Then use the following
+## InfluxDB queries
 
 ```
-influx delete --bucket "$YourBucket" --predicate '_measurement="$Example"' -o $organization --start "1970-01-01T00:00:00Z" --stop "2050-12-31T23:59:00Z" --token "$YourAPIToken"
+from(bucket: v.defaultBucket)
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "gateways")
+  |> limit(n: 10)
 ```
 
-### Learn more about Flux queries
+To delete one measurement (replace org, bucket, token and measurement):
 
-https://docs.influxdata.com/influxdb/cloud/query-data/flux/query-fields/
-
-https://docs.influxdata.com/influxdb/cloud/query-data/flux/explore-schema/
-
-### Suricata Troubleshooting
-
-If there is no data on the Suricata dashboard, verify if there are any alerts in /tmp/eve.json.
-
-If there is nothing in /tmp/eve.json, verify that /usr/local/opnsense/service/templates/OPNsense/IDS/custom.yaml and /usr/local/etc/suricata/custom.yaml are identical to the one in this repo.
-
-If /usr/local/etc/suricata/custom.yaml is not identical, but /usr/local/opnsense/service/templates/OPNsense/IDS/custom.yaml is, you will need to reload Suricata from the GUI. To do so you would uncheck Enable in the Suricata GUI, click Apply, then check Enable, and click Apply again. You will need to wait for Suricata to reload. If you have a lot of rules this can take some time. 
-
-If you've verified and done all the steps above, and still see nothing, you could try using [tmNIDS](https://github.com/3CORESec/testmynids.org) to generate alerts. You will need bash installed on your OPNsense system for this. 
-
-`sudo pkg install bash`
-
-Once you have bash installed, you can use this one-liner to download and execute tmNIDS.
-
+```sh
+docker compose exec influxdb influx delete --org "$INFLUXDB_ORG" --bucket "$INFLUXDB_BUCKET" \
+  --token "$INFLUXDB_ADMIN_TOKEN" --start 1970-01-01T00:00:00Z --stop 2100-01-01T00:00:00Z \
+  --predicate '_measurement="temperature"'
 ```
-curl https://raw.githubusercontent.com/3CORESec/testmynids.org/master/tmNIDS -o /tmp/tmNIDS && chmod +x /tmp/tmNIDS && bash /tmp/tmNIDS
-```
-
-You can then run the tests through the CLI.
-### Map Issues
-
-If you see no GeoIP data on the map make sure you rearranged the Message Processors in System -> Configurations, and reorder like so:

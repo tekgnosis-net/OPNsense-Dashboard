@@ -26,6 +26,32 @@ see [Credits and history](#credits-and-history).
 
 Screenshots show synthetic test data from `tests/e2e`.
 
+## How it works
+
+```mermaid
+flowchart LR
+  subgraph FW["OPNsense firewall"]
+    T["Telegraf<br/>built-in inputs + collectors"]
+    E["Suricata eve.json"]
+    S["syslog-ng<br/>filterlog, RFC5424"]
+  end
+  subgraph MH["Monitoring host (Docker)"]
+    IDB[("InfluxDB 2.9")]
+    GL["Graylog 7.1<br/>extractors, GeoIP"]
+    OS[("OpenSearch 2.19")]
+    G["Grafana 13"]
+  end
+  E -- "Intrusion Detection Alerts input" --> T
+  T -- "line protocol" --> IDB
+  S -- "UDP 1514" --> GL --> OS
+  IDB -- "Flux" --> G
+  OS -- "Lucene" --> G
+```
+
+The metrics pipeline (InfluxDB, Grafana) works on its own. The firewall log
+pipeline (Graylog, MongoDB, OpenSearch) is optional: set `COMPOSE_PROFILES=`
+for a metrics-only install.
+
 ## Requirements
 
 - **Firewall:** OPNsense 26.7.x (tested; older releases untested) with the
@@ -38,6 +64,20 @@ Screenshots show synthetic test data from `tests/e2e`.
     requires. On Proxmox, set the VM CPU type to `x86-64-v3` or `host`.
   - `vm.max_map_count` of at least 262144 on the host (for OpenSearch).
 - **Firewall map:** a free MaxMind GeoLite2 account.
+
+## Supported versions
+
+| Component | Version |
+|---|---|
+| OPNsense | 26.7.x (tested with 26.7.4); older releases untested |
+| os-telegraf | 1.12.x |
+| Grafana | 13.2.2 |
+| InfluxDB | 2.9.1 (2.x only) |
+| Graylog | 7.1.9 |
+| OpenSearch | 2.19.6 |
+| MongoDB | 8.0 |
+
+Versions are pinned in `.env.example`; see the Settings table to change them.
 
 ## Quick start
 
@@ -107,14 +147,20 @@ The firewall-side exec timeout (`timeout = "10s"`) lives in
 - [docs/stack.md](docs/stack.md): monitoring host setup (Docker stack, Graylog, Grafana)
 - [docs/troubleshooting.md](docs/troubleshooting.md)
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md). Coming from bsmithio/OPNsense-Dashboard?
+Upgrade the router side with the Ansible playbook ([docs/opnsense.md](docs/opnsense.md))
+and install the monitoring stack fresh.
+
 ## Repository layout
 
 | Path | Contents |
 |---|---|
 | `opnsense/` | Files installed on the firewall: Telegraf exec scripts (`bin/`), Telegraf config (`telegraf.d/`), Ansible playbook (`ansible/`) |
-| `graylog/` | Graylog content pack |
-| `grafana/dashboards/` | Dashboard JSON |
-| `docker-compose.yaml` | Monitoring host stack |
+| `graylog/` | Graylog content pack and `init/graylog-init.sh` (one-shot setup through the API) |
+| `grafana/` | Dashboard JSON (`dashboards/`) and datasource/dashboard provisioning (`provisioning/`) |
+| `docker-compose.yaml`, `.env.example` | Monitoring host stack and its settings |
 | `tests/` | Static checks, unit tests and the end-to-end suite |
 | `docs/` | Setup guides, troubleshooting and design records |
 

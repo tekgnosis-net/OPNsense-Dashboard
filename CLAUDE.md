@@ -27,7 +27,7 @@ sh tests/run-static.sh    # every tests/static/check_*: lint, upstream refs, rep
 sh tests/run-unit.sh      # PHP plugin vs stubs of OPNsense 26.7.4 functions; temperature script vs a fake sysctl
 ```
 
-`tests/e2e/run.sh` arrives in a later phase of v2. On the router, **as root** (testing as the `telegraf` user hides root-only failures):
+`sh tests/e2e/stack_smoke.sh` brings the whole stack up in Docker (compose project `opnsense-dash-test`, loopback ports 13000/18086/19000/11514, ~4 GB RAM), runs `graylog-init` twice and checks provisioning; `E2E_KEEP=1` leaves it running. It never touches other compose projects on the host. `tests/e2e/run.sh` (every dashboard query) arrives in a later phase. On the router, **as root** (testing as the `telegraf` user hides root-only failures):
 
 ```sh
 /usr/local/bin/telegraf_pfifgw.php            # prints Influx line protocol
@@ -35,7 +35,7 @@ sh /usr/local/bin/telegraf_temperature.sh
 telegraf --test --config /usr/local/etc/telegraf.conf --config-directory /usr/local/etc/telegraf.d
 ```
 
-To run the monitoring stack, use `docker compose up -d`. It serves Grafana on :3000, InfluxDB on :8086, Graylog on :9000, and syslog on UDP :1514.
+To run the monitoring stack: `cp .env.example .env`, edit it, `docker compose up -d`, then once `docker compose run --rm graylog-init`. Grafana :3000, InfluxDB :8086, Graylog :9000, syslog UDP :1514 (all `.env` settings).
 
 To provision the router, run `ansible-playbook -i inventory.ini -k playbook.yml` from `opnsense/ansible/`. It copies files from the checkout and removes the old sudoers lines and Suricata files.
 
@@ -49,7 +49,7 @@ The OPNsense `os-telegraf` plugin runs **as root** ("Run as Root"; no sudo anywh
 - `telegraf_temperature.sh` emits `temperature` (tag `sensor`, field `degrees`), discovering Kelvin-typed sysctls the way OPNsense core does.
 - The dashboard's other measurements come from built-in Telegraf inputs: `system`, `cpu`, `mem`, `disk`, `processes`, `pf`, `net`.
 
-### Firewall logs (syslog → Graylog → Elasticsearch → Lucene panels)
+### Firewall logs (syslog → Graylog → OpenSearch → Lucene panels)
 
 OPNsense sends syslog to Graylog's Syslog UDP input on port 1514. The content pack `graylog/OPNsense-pack.json` provides:
 
@@ -71,6 +71,23 @@ A mismatch on any of these produces empty panels, not errors:
 - **Graylog CSV headers ↔ Lucene queries.** The Graylog CSV `column_header` must match the field names in the dashboard's Lucene queries. These fields are hyphenated (`src-ip`, `dst-port`, `protocol-name`).
 - **Datasource and bucket portability.** Panels reference `${dataSource}` or `${ESdataSource}`, and Flux queries use `v.defaultBucket`. Keep it that way when re-exporting from Grafana.
 - **No upstream download URLs.** `tests/static/check_upstream_refs.sh` fails on any raw-download URL or hosted image belonging to the upstream authors. Downloads point at this repository.
+
+## Stack
+
+| Service | Version |
+|---|---|
+| Grafana | 13.2.2 (+ grafana-opensearch-datasource 2.34.4 via `GF_PLUGINS_PREINSTALL_SYNC`) |
+| InfluxDB | 2.9.1 (2.x only: InfluxDB 3 has no Flux) |
+| Graylog | 7.1.9 |
+| OpenSearch | 2.19.6 (Graylog 7.1 supports ≤ 2.19) |
+| MongoDB | 8.0 (needs AVX) |
+| geoipupdate | v8.0.0 |
+
+- **Profiles:** `logs` = the Graylog side (default through `COMPOSE_PROFILES`), `init` = `graylog-init`. An explicit `--profile` replaces `COMPOSE_PROFILES`, so pass `--profile logs --profile init` together when you need both.
+- **Provisioning:** InfluxDB initializes from `DOCKER_INFLUXDB_INIT_*`; Grafana datasources (`influxdb-opnsense`, `opensearch-opnsense`) and dashboards come from `grafana/provisioning/`. The OpenSearch plugin's health check fails on wildcard index patterns (grafana/opensearch-datasource#888) — prove it with a query, not `/health`.
+- **Graylog admin password:** `.env` holds it in plaintext (`GRAYLOG_ADMIN_PASSWORD`); the graylog service entrypoint derives the SHA-256, and `graylog-init` logs in with it.
+- **`graylog-init.sh`** is the only supported way to configure Graylog. It handles Graylog 7.1 API quirks: content-pack streams start paused; a second pack install duplicates inputs/streams (check installations first); `PUT /streams/{id}` clears the description if omitted; index-set POSTs reject unknown fields.
+- **Settings rule:** every threshold/window/toggle is a `.env` variable present in `.env.example`, `docker-compose.yaml` and the README Settings table; `tests/static/check_compose.sh` and `check_settings.py` enforce it. Scripts in this repo clamp numeric settings they read.
 
 ## Editing dashboards
 

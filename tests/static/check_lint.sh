@@ -16,7 +16,7 @@ for f in $(git ls-files '*.php' '*.inc'); do
     php -n -l "$f" >/dev/null || fail "php -l: $f"
 done
 # shellcheck disable=SC2046
-shellcheck -s sh $(git ls-files '*.sh') tests/shell/bin/sysctl || fail shellcheck
+shellcheck -x -s sh $(git ls-files '*.sh') tests/shell/bin/sysctl || fail shellcheck
 # shellcheck disable=SC2046
 yamllint -s $(git ls-files '*.yml' '*.yaml' '.yamllint') || fail yamllint
 (cd opnsense/ansible && ansible-playbook -i inventory.ini --syntax-check playbook.yml >/dev/null) \

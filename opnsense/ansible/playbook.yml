@@ -1,0 +1,91 @@
+---
+# Installs the OPNsense-Dashboard Telegraf collectors on OPNsense 26.7 from
+# this checkout and removes files and sudoers lines left by earlier versions.
+# GUI settings (Run as Root, inputs, Influx output, remote syslog) are
+# described in docs/opnsense.md and are not changed here.
+- name: Install OPNsense-Dashboard collectors
+  hosts: opnsense
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    sudoers_file: /usr/local/etc/sudoers
+    telegraf_confdir: /usr/local/etc/telegraf.d
+
+  tasks:
+    - name: Check that the os-telegraf plugin is installed
+      ansible.builtin.stat:
+        path: /usr/local/etc/rc.d/telegraf
+      register: telegraf_rc
+
+    - name: Stop if os-telegraf is missing
+      ansible.builtin.assert:
+        that: telegraf_rc.stat.exists
+        fail_msg: Install os-telegraf (System > Firmware > Plugins) before running this playbook.
+
+    # Remove in dependency order: Defaults references the alias, the alias
+    # references the script.
+    - name: Remove legacy sudoers Defaults line for the pfifgw script
+      ansible.builtin.lineinfile:
+        path: "{{ sudoers_file }}"
+        regexp: '^Defaults\\?!PFIF?GW\b'
+        state: absent
+        validate: /usr/local/sbin/visudo -cf %s
+
+    - name: Remove legacy sudoers command alias for the pfifgw script
+      ansible.builtin.lineinfile:
+        path: "{{ sudoers_file }}"
+        regexp: '^Cmnd_Alias\s+PFIF?GW\b'
+        state: absent
+        validate: /usr/local/sbin/visudo -cf %s
+
+    - name: Remove legacy sudoers rules for the telegraf user
+      ansible.builtin.lineinfile:
+        path: "{{ sudoers_file }}"
+        regexp: '^telegraf\s+ALL\s*='
+        state: absent
+        validate: /usr/local/sbin/visudo -cf %s
+
+    - name: Remove files from earlier versions
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ telegraf_confdir }}/suricata.conf"
+        - /usr/local/opnsense/service/templates/OPNsense/IDS/custom.yaml
+        - /tmp/eve.json
+      notify: Restart telegraf
+
+    - name: Create the Telegraf drop-in directory
+      ansible.builtin.file:
+        path: "{{ telegraf_confdir }}"
+        state: directory
+        owner: telegraf
+        group: telegraf
+        mode: "0750"
+
+    - name: Install the collector scripts
+      ansible.builtin.copy:
+        src: "{{ repo_root }}/opnsense/bin/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        owner: root
+        group: wheel
+        mode: "0755"
+      loop:
+        - telegraf_pfifgw.php
+        - telegraf_temperature.sh
+      notify: Restart telegraf
+
+    - name: Install the exec input configuration
+      ansible.builtin.copy:
+        src: "{{ repo_root }}/opnsense/telegraf.d/custom.conf"
+        dest: "{{ telegraf_confdir }}/custom.conf"
+        owner: root
+        group: wheel
+        mode: "0644"
+      notify: Restart telegraf
+
+  handlers:
+    - name: Restart telegraf
+      ansible.builtin.service:
+        name: telegraf
+        state: restarted

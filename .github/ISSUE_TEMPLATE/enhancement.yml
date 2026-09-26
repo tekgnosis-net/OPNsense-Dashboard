@@ -1,0 +1,20 @@
+name: Enhancement
+description: Suggest a new panel, metric or improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to see or change?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is it useful?
+      description: What question would this answer about your firewall?
+  - type: textarea
+    id: data
+    attributes:
+      label: Where would the data come from?
+      description: Telegraf input, OPNsense API, syslog, Suricata, ... (if known)

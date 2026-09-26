@@ -1,0 +1,4 @@
+dev.amdtemp.0.ccd0: 41.3C
+dev.amdtemp.0.core0.sensor0: 40.5C
+dev.pchtherm.0.temperature: 38.0C
+hw.acpi.thermal.tz0.temperature: 29.8C

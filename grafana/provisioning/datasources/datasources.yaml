@@ -1,0 +1,32 @@
+# Provisioned datasources. Values come from the grafana service's environment
+# (docker-compose.yaml). The dashboards pick them through their ${dataSource}
+# and ${ESdataSource} variables, so the UIDs here are not hard-coded there.
+apiVersion: 1
+datasources:
+  - name: InfluxDB
+    uid: influxdb-opnsense
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    isDefault: true
+    jsonData:
+      version: Flux
+      organization: $INFLUXDB_ORG
+      defaultBucket: $INFLUXDB_BUCKET
+    secureJsonData:
+      token: $INFLUXDB_GRAFANA_TOKEN
+  # flavor and version are provisioned so the plugin never needs the UI's
+  # "Get version and save" button (grafana/opensearch-datasource#1083).
+  - name: OpenSearch
+    uid: opensearch-opnsense
+    type: grafana-opensearch-datasource
+    access: proxy
+    url: http://opensearch:9200
+    jsonData:
+      database: "opnsense_filterlog_*"
+      timeField: timestamp
+      flavor: opensearch
+      version: $OPENSEARCH_VERSION
+      pplEnabled: false
+      maxConcurrentShardRequests: 5
+      logMessageField: message

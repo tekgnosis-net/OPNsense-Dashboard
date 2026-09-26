@@ -1,0 +1,4 @@
+temperature,sensor=amdtemp0ccd0 degrees=41.3
+temperature,sensor=amdtemp0core0sensor0 degrees=40.5
+temperature,sensor=pchtherm0 degrees=38.0
+temperature,sensor=tz0 degrees=29.8

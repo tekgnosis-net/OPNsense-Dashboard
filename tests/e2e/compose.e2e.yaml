@@ -1,0 +1,5 @@
+# Test-only override: tests/e2e/lib.sh copies MaxMind's public test database
+# into the GeoIP volume instead of downloading GeoLite2 with a licence key.
+services:
+  geoipupdate:
+    profiles: !override [disabled]

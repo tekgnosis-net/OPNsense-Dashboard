@@ -1,0 +1,19 @@
+#!/bin/sh
+# Fake FreeBSD sysctl(8) for unit tests. "sysctl -aF" replays
+# $SYSCTL_CASE/aF.txt; "sysctl -i OID..." prints each OID's line from
+# $SYSCTL_CASE/values.txt (unknown OIDs print nothing, as -i does).
+case "${1:-}" in
+    -aF)
+        cat "$SYSCTL_CASE/aF.txt"
+        ;;
+    -i)
+        shift
+        for oid in "$@"; do
+            awk -F ': ' -v oid="$oid" '$1 == oid' "$SYSCTL_CASE/values.txt"
+        done
+        ;;
+    *)
+        echo "fake sysctl: unsupported arguments: $*" >&2
+        exit 2
+        ;;
+esac

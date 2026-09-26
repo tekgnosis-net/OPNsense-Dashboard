@@ -1,0 +1,2 @@
+dev.cpu.0.temperature: IK
+dev.cpu.1.temperature: IK

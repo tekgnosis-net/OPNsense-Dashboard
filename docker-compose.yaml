@@ -1,98 +1,193 @@
-version: '3'
+# OPNsense-Dashboard monitoring stack. Settings come from .env (see
+# .env.example and the README settings table).
+#   Full stack:   COMPOSE_PROFILES=logs (the default in .env.example)
+#   Metrics only: COMPOSE_PROFILES=     (InfluxDB and Grafana only)
+#   One-time Graylog setup: docker compose run --rm graylog-init
+name: opnsense-dashboard
+
 services:
-  mongodb:
-    container_name: mongo
-    image: mongo:6.0.4
-    volumes:
-      - mongodb_data:/data/db
-    restart: "unless-stopped"
-    environment:
-      # Change this to your time zone, valid time zones can be found here: https://www.joda.org/joda-time/timezones.html
-      - TZ=CST6CDT
-    networks:
-      - graylog  
-  elasticsearch:
-    container_name: elasticsearch
-    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
-    volumes:
-      - es_data:/usr/share/elasticsearch/data
-    environment:
-      # Change this to your time zone, valid time zones can be found here: https://www.joda.org/joda-time/timezones.html
-      - TZ=CST6CDT
-      - http.host=0.0.0.0
-      - transport.host=localhost
-      - network.host=0.0.0.0
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    restart: "unless-stopped"
-    networks:
-      - graylog
-  graylog:
-    container_name: graylog
-    image: graylog/graylog:5.0.2
-    volumes:
-      - graylog_data:/usr/share/graylog/data
-    environment:
-      # Change these to your time zone, valid time zones can be found here: https://www.joda.org/joda-time/timezones.html
-      - TZ=CST6CDT
-      - ROOT_TIMEZONE=CST6CDT
-      - GRAYLOG_TIMEZONE=CST6CDT
-      # CHANGE ME (must be at least 16 characters)! This is not your password, this is meant for salting the password below.
-      - GRAYLOG_PASSWORD_SECRET=ZDcwMzQ3NTE4ZTIwM
-      # Username is "admin"
-      # Password is "admin", change this to your own hashed password. 'echo -n "password" | sha256sum' 
-      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
-      - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
-    networks:
-      - graylog
-    depends_on:
-      - mongodb
-      - elasticsearch
-    ports:
-      # Graylog web interface and REST API
-      - 9000:9000
-      # Syslog UDP
-      - 1514:1514/udp
-      # Syslog TCP Optional
-      #- 1514:1514
-    restart: "unless-stopped"
   influxdb:
-    container_name: influxdb
-    image: influxdb:2.6.1
-    ports:
-      - '8086:8086'
-    volumes:
-      - influxdb2_data:/var/lib/influxdb2
+    image: ${INFLUXDB_IMAGE:-influxdb:2.9.1}
+    restart: unless-stopped
     environment:
-      # Change this to your time zone, valid time zones can be found here: https://www.joda.org/joda-time/timezones.html
-      - TZ=CST6CDT
-    restart: "unless-stopped"
-    networks:
-      - graylog
-  grafana:
-    container_name: grafana
-    image: grafana/grafana:9.2.10
+      TZ: ${TZ:-Etc/UTC}
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USER:-admin}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD:?set INFLUXDB_ADMIN_PASSWORD in .env}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-opnsense}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-opnsense}
+      DOCKER_INFLUXDB_INIT_RETENTION: ${INFLUXDB_RETENTION:-30d}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN:?set INFLUXDB_ADMIN_TOKEN in .env}
     ports:
-      - '3000:3000'
+      - ${BIND_ADDRESS:-0.0.0.0}:${INFLUXDB_PORT:-8086}:8086
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8086/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  grafana:
+    image: ${GRAFANA_IMAGE:-grafana/grafana:13.2.2}
+    restart: unless-stopped
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_PLUGINS_PREINSTALL_SYNC: grafana-opensearch-datasource@${OPENSEARCH_PLUGIN_VERSION:-2.34.4}
+      GF_PLUGINS_PREINSTALL_AUTO_UPDATE: "false"
+      INFLUXDB_ORG: ${INFLUXDB_ORG:-opnsense}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET:-opnsense}
+      INFLUXDB_GRAFANA_TOKEN: ${INFLUXDB_GRAFANA_TOKEN:-${INFLUXDB_ADMIN_TOKEN}}
+      OPENSEARCH_VERSION: ${OPENSEARCH_VERSION:-2.19.6}
+    ports:
+      - ${BIND_ADDRESS:-0.0.0.0}:${GRAFANA_PORT:-3000}:3000
     volumes:
       - grafana_data:/var/lib/grafana
-    depends_on:
-      - influxdb
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  mongodb:
+    image: ${MONGO_IMAGE:-mongo:8.0}
+    profiles: [logs]
+    restart: unless-stopped
     environment:
-      # Change this to your time zone, valid time zones can be found here: https://www.joda.org/joda-time/timezones.html
-      - TZ=CST6CDT
-      # Change these
-      - GF_SECURITY_ADMIN_USER=opnsense
-      - GF_SECURITY_ADMIN_PASSWORD=opnsense
-      - GF_INSTALL_PLUGINS=grafana-worldmap-panel
-    restart: "unless-stopped"
-    networks:
-      - graylog
-networks:
+      TZ: ${TZ:-Etc/UTC}
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  opensearch:
+    image: opensearchproject/opensearch:${OPENSEARCH_VERSION:-2.19.6}
+    profiles: [logs]
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      discovery.type: single-node
+      action.auto_create_index: "false"
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms${OPENSEARCH_HEAP:-1g} -Xmx${OPENSEARCH_HEAP:-1g}
+    ulimits:
+      memlock: {soft: -1, hard: -1}
+      nofile: {soft: 65536, hard: 65536}
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
   graylog:
-    driver: bridge
+    image: ${GRAYLOG_IMAGE:-graylog/graylog:7.1.9}
+    profiles: [logs]
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    # Derive the root password hash from the one plaintext secret in .env so
+    # graylog-init can log in with the same value.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        GRAYLOG_ROOT_PASSWORD_SHA2=$$(printf '%s' "$$GRAYLOG_ADMIN_PASSWORD" | sha256sum | cut -d' ' -f1)
+        export GRAYLOG_ROOT_PASSWORD_SHA2
+        unset GRAYLOG_ADMIN_PASSWORD
+        exec /usr/bin/tini -- /docker-entrypoint.sh server
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      GRAYLOG_ROOT_TIMEZONE: ${TZ:-Etc/UTC}
+      GRAYLOG_ADMIN_PASSWORD: ${GRAYLOG_ADMIN_PASSWORD:?set GRAYLOG_ADMIN_PASSWORD in .env}
+      GRAYLOG_PASSWORD_SECRET: ${GRAYLOG_PASSWORD_SECRET:?set GRAYLOG_PASSWORD_SECRET in .env}
+      GRAYLOG_HTTP_BIND_ADDRESS: 0.0.0.0:9000
+      GRAYLOG_HTTP_EXTERNAL_URI: ${GRAYLOG_EXTERNAL_URI:-http://127.0.0.1:9000/}
+      GRAYLOG_ELASTICSEARCH_HOSTS: http://opensearch:9200
+      GRAYLOG_MONGODB_URI: mongodb://mongodb:27017/graylog
+      GRAYLOG_MESSAGE_JOURNAL_MAX_SIZE: ${GRAYLOG_JOURNAL_MAX_SIZE:-2gb}
+      GRAYLOG_SERVER_JAVA_OPTS: -Xms${GRAYLOG_HEAP:-1g} -Xmx${GRAYLOG_HEAP:-1g}
+    ports:
+      - ${BIND_ADDRESS:-0.0.0.0}:${GRAYLOG_PORT:-9000}:9000
+      - ${BIND_ADDRESS:-0.0.0.0}:${SYSLOG_PORT:-1514}:1514/udp
+    volumes:
+      - graylog_data:/usr/share/graylog/data
+      - geoip_data:/usr/share/graylog/geoip:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          (curl -fsS http://localhost:9000/api/system/lbstatus
+          || wget -qO- http://localhost:9000/api/system/lbstatus) | grep -q ALIVE
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  geoipupdate:
+    image: ${GEOIPUPDATE_IMAGE:-ghcr.io/maxmind/geoipupdate:v8.0.0}
+    profiles: [logs]
+    # Keep retrying: a new MaxMind key can take minutes to activate.
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      GEOIPUPDATE_ACCOUNT_ID: ${MAXMIND_ACCOUNT_ID:-}
+      GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY:-}
+      GEOIPUPDATE_EDITION_IDS: GeoLite2-Country
+      GEOIPUPDATE_FREQUENCY: ${GEOIP_UPDATE_HOURS:-72}
+      GEOIPUPDATE_DB_DIR: /usr/share/GeoIP
+    volumes:
+      - geoip_data:/usr/share/GeoIP
+
+  graylog-init:
+    image: ${INIT_IMAGE:-alpine:3.24}
+    profiles: [init]
+    depends_on:
+      graylog:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      GRAYLOG_URL: http://graylog:9000
+      GRAYLOG_ADMIN_USER: admin
+      GRAYLOG_ADMIN_PASSWORD: ${GRAYLOG_ADMIN_PASSWORD:?set GRAYLOG_ADMIN_PASSWORD in .env}
+      CONTENT_PACK: /init/OPNsense-pack.json
+      GEOIP_FILE: /geoip/GeoLite2-Country.mmdb
+      GEOIP_WAIT_SECONDS: ${GEOIP_WAIT_SECONDS:-600}
+      GRAYLOG_INIT_TIMEOUT_SECONDS: ${GRAYLOG_INIT_TIMEOUT_SECONDS:-300}
+      GRAYLOG_INDEX_ROTATION: ${GRAYLOG_INDEX_ROTATION:-P1D}
+      GRAYLOG_INDEX_MAX_COUNT: ${GRAYLOG_INDEX_MAX_COUNT:-30}
+    volumes:
+      - ./graylog/init/graylog-init.sh:/init/graylog-init.sh:ro
+      - ./graylog/OPNsense-pack.json:/init/OPNsense-pack.json:ro
+      - geoip_data:/geoip:ro
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache --quiet curl jq && exec sh /init/graylog-init.sh"]
+
 volumes:
+  influxdb_data:
+  influxdb_config:
   grafana_data:
-  influxdb2_data:
-  graylog_data:
-  es_data:
   mongodb_data:
+  mongodb_config:
+  opensearch_data:
+  graylog_data:
+  geoip_data:

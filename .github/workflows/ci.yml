@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: Also run the end-to-end suite (about 15 minutes)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Static checks and unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq php-cli shellcheck jq
+          python -m pip install -q -r tests/requirements-dev.txt
+      - name: Static checks
+        run: sh tests/run-static.sh
+      - name: Unit tests
+        run: sh tests/run-unit.sh
+
+  e2e:
+    name: End-to-end suite
+    if: github.event_name == 'workflow_dispatch' && inputs.e2e
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: OpenSearch memory maps
+        run: sudo sysctl -w vm.max_map_count=262144
+      - name: End-to-end suite
+        run: sh tests/e2e/run.sh

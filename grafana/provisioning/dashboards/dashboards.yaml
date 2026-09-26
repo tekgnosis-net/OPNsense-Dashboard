@@ -1,0 +1,12 @@
+apiVersion: 1
+providers:
+  - name: opnsense
+    orgId: 1
+    folder: OPNsense
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    updateIntervalSeconds: 60
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

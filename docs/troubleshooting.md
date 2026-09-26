@@ -106,6 +106,19 @@ reach InfluxDB, does the syslog reach Graylog, and does Grafana query it?
   still empty. MongoDB 7.0 cannot open a database that 8.0 created; in that
   case recreate the `mongodb_data` volume (this resets Graylog's configuration)
   and run `graylog-init` again.
+- **`docker compose up -d` fails with
+  `Bind for 0.0.0.0:3000 failed: port is already allocated`
+  and the container stays "Created".** Another container or
+  service on the host already uses that port. Find it with
+  `docker ps --format '{{.Names}}\t{{.Ports}}' | grep ':3000->'` or
+  `ss -ltun 'sport = :3000'` (use the port from the error). Set the matching
+  setting in `.env` to a free port, then run `docker compose up -d`:
+  - `GRAFANA_PORT` (3000): open Grafana on the new port.
+  - `INFLUXDB_PORT` (8086): also change the Influx v2 URL in OPNsense's
+    Telegraf output.
+  - `GRAYLOG_PORT` (9000): also change `GRAYLOG_EXTERNAL_URI` to match.
+  - `SYSLOG_PORT` (1514/udp): also change the port of OPNsense's remote
+    logging target.
 - **Graylog won't start with a journal or disk preflight error.** Free disk
   space or lower `GRAYLOG_JOURNAL_MAX_SIZE` (#50).
 - **Graylog won't start with a missing `graylog.conf`.** A host directory

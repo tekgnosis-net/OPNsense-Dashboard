@@ -45,6 +45,10 @@ need(".github/workflows/ci.yml", "tests/run-static.sh", "tests/run-unit.sh", "te
 need(".env.example", "8-72 characters", "at least 16 characters")
 need("docs/troubleshooting.md", "passwords must be between 8 and 72", "password_secret",
      "MongoDB cannot start", "mongo:7.0")
+# Hosts that already run another Grafana/InfluxDB/Graylog take the default ports;
+# the fix is the *_PORT settings (and GRAYLOG_EXTERNAL_URI to match GRAYLOG_PORT).
+need("docs/troubleshooting.md", "port is already allocated", "GRAFANA_PORT", "INFLUXDB_PORT",
+     "GRAYLOG_EXTERNAL_URI")
 
 def forbid(path, pattern, why):
     text = (ROOT / path).read_text()

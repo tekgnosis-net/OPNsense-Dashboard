@@ -1,7 +1,7 @@
 # OPNsense-Dashboard v2 — modernization and de-fork
 
 - **Date:** 2026-09-26
-- **Status:** approved design, pending implementation
+- **Status:** approved design, pending implementation. Amended 2026-09-27 after triaging all 68 upstream issues and PRs (§3.4, D10–D13).
 - **Branch:** `v2-modernization`
 
 ## 1. Goal
@@ -35,6 +35,10 @@ These were made by the maintainer during brainstorming.
 | D7 | Layout | New layout (section 4) plus GitHub issue and PR templates. |
 | D8 | WAN/LAN defaults | Detected from the OPNsense interface description. Users can still override them. |
 | D9 | Local remote | `upstream` git remote removed. Done on 2026-09-26. |
+| D10 | Metrics-only install (upstream #55) | The log services sit under a `logs` compose profile. `.env.example` sets `COMPOSE_PROFILES=logs`, so the full stack stays the default. Removing it gives InfluxDB and Grafana only. |
+| D11 | CARP metrics (#69) | Backlog for v2.1. |
+| D12 | Feature ideas: dst-ip GeoIP, "Firewall Events" dashboard, ping and speed-test panels (PR #54, #41, #79) | Backlog for v2.1. Implement fresh, since upstream code is unlicensed. |
+| D13 | Upstream issue triage (§3.4) | All 14 gaps and all regression tests are adopted into this spec. |
 
 The maintainer does these steps after merge. They are documented, not automated:
 - Settings → Danger Zone → **Leave fork network**. This is irreversible. The repo qualifies: it is public, 19 MB, and has no child forks, stars or issues.
@@ -80,6 +84,34 @@ This section records research findings as evidence. "Verified" means checked aga
 - The `src_ip`, `dst_ip` and `dst_port` variables query underscored fields. The extractors emit `src-ip`, `dst-ip` and `dst-port`.
 - Gateway Summary maps only `0`/`1`, so degraded dpinger states show as raw text.
 - The `WAN` default is hard-coded to `igb0`. That fails on VMs using `vtnet` (#56).
+- The Suricata dashboard's "Top Alert Signatures" query uses `from(bucket: "opnsense")` instead of `v.defaultBucket` (#77, PR #44).
+- The multi-firewall host filtering from upstream commit `8fa23f1` (#33) has partly regressed:
+  - Panel 111 ("Firewall Blocked Events") has no `source:$Host`.
+  - The `LAN`, `iface`, `src_ip`, `dst_ip` and `dst_port` variables have no host filter.
+  - "Top IP Blocked" uses a lowercase `and`, which Lucene treats as a search term, so its Host filter is effectively optional.
+- The extractor CSV headers are inconsistent:
+  - Some use `ipversion`, others `ip-version`.
+  - IPv4 UDP uses `flags` where the others use `ip-flags`.
+  - IPv6 TCP declares 27 columns where filterlog emits 26 (a likely cause of #70).
+  - Several have a spurious trailing `opnsense-rid`.
+- Gateway RTT and Loss panels plot raw points with no aggregation, which looks implausible over long ranges (#79).
+- Active Users shows "N/A" when Telegraf omits `n_users` because `/var/run/utx.active` is missing (#42, #32).
+- The Suricata "Alert Logs" table lacks the alert action and signature ID (#22).
+- The GeoIP pipeline rule sets `src-ip-geo-location` and `src-ip-geo-city`. GeoLite2-Country has no coordinates or city, so those lookups are always empty.
+
+### 3.4 Upstream issue triage (68 items, 2026-09-27)
+
+Every open and closed issue and PR on bsmithio/OPNsense-Dashboard was read, including comments and PR diffs, and checked against this spec. The raw dumps are in the session scratchpad and not committed.
+
+| Class | Items |
+|---|---|
+| Covered by this design | #89 #88 #82 #80 #78 #70 #64 #62 #61 #60 #59 #57 #56 #39 #34 #26 (map) and closed #1 #2 #4 #11 #13 #14 #15 #21 #23 #27 #47 #48 #51 #58 #71 #72 #74 #81 #83 #86 |
+| Gaps adopted into this spec | #22 #32/#42 #33 #37/#45 #50 #52 #68 #77/PR44 #79, extractor header inconsistencies, hostname contract, Ansible sudoers variants (PR #28, #1), row titles (#80 comments), GeoIP DB activation delay (#34/#62) |
+| Regression risks, now tests (§6) | PR #16 (datasource variables), PR #35 (packet loss), `8fa23f1` (LAN/WAN recv/sent direction, host filters), #25 (light-mode text colour), PR #36 (Ansible visudo validation) |
+| Obsolete under this design | #63, #38, #3, #7, #29, #46, PR #73, PR #75 |
+| Out of scope | #84 (Prometheus/API question), Zenarmor part of #26 |
+| Backlog v2.1 (D11, D12) | #69 CARP, #41 and PR #54 Firewall Events / dst-ip GeoIP, #79 ping panels, PR #54 speed-test panels |
+| Metrics-only mode (D10) | #55 |
 
 ## 4. Repository layout
 
@@ -130,16 +162,21 @@ Removed: `configure.md` (split into `docs/`), `config/suricata/`, the top-level 
 
 ### 5.2 Router side
 
-**`opnsense/bin/telegraf_pfifgw.php`** is a rewrite that keeps the output contract byte-compatible.
+**`opnsense/bin/telegraf_pfifgw.php`** is a rewrite that keeps the measurement, tag and field names and types compatible, with one deliberate change:
+
+- **No `host=` tag in the script's output** (the temperature script too).
+  - Telegraf adds its agent `host` tag to every metric, but it never overrides a tag the plugin already set (verified in Telegraf `makemetric.go` v1.40.0).
+  - With a script-supplied `gethostname()`, setting the os-telegraf Hostname option would make `interface`, `gateways` and `temperature` disagree with `system`, which the `Host` variable is built from.
+  - Letting Telegraf add the tag keeps one source of truth.
 
 The `interface` measurement:
-- Tags: `host`, `name`, `ip4_address`, `ip4_subnet`, `ip6_address`, `ip6_subnet`, `mac_address`, `friendlyname`, `source`.
+- Tags: `host` (added by Telegraf), `name`, `ip4_address`, `ip4_subnet`, `ip6_address`, `ip6_subnet`, `mac_address`, `friendlyname`, `source`.
 - Integer field `status`: 1 = up, 0 = down, 2 = unknown.
 - Status follows core's `OverviewController::parseIfInfo` rule: up if the `up` flag is set and the media status is `active` or `running`, or empty.
 - Addresses come from `interfaces_primary_address[6]($ifname, $ifd)`, which takes the logical name and so handles track6 and `_stf`.
 
 The `gateways` measurement:
-- Tags: `host`, `interface`, `gateway_name`.
+- Tags: `host` (added by Telegraf), `interface`, `gateway_name`.
 - String fields: `monitor`, `source`, `gwdescr`, `status`.
 - Float fields: `delay`, `stddev`, `loss`.
 - Status mapping, which stays a **string** field so the type is unchanged:
@@ -163,7 +200,7 @@ Other changes in the script:
 - Valid shebang, `grep -F`, clean under `shellcheck`.
 - It discovers sensors from Kelvin-type sysctls (`sysctl -a` restricted to `dev.cpu.*`, `hw.acpi.thermal.*`, `dev.amdtemp.*` and `dev.pchtherm.*` temperature leaves). The exact method is fixed in the implementation plan after checking FreeBSD `sysctl` output formats.
 - Existing sensor tags keep their names: `cpuN` and `tzN`. New sensors get deterministic names (for example `amdtemp0core0`).
-- Output is `temperature,sensor=<s>,host=<h> degrees=<float>`.
+- Output is `temperature,sensor=<s> degrees=<float>`. Telegraf adds `host`.
 
 **`opnsense/telegraf.d/custom.conf`**
 - Commands: `/usr/local/bin/telegraf_pfifgw.php` and `/bin/sh /usr/local/bin/telegraf_temperature.sh`, with no sudo.
@@ -176,20 +213,27 @@ Other changes in the script:
 **`opnsense/ansible/`**
 - `inventory.ini`, INI format.
 - The playbook `copy`s files from the checkout (mode 0755 for the scripts, 0644 for the conf).
+- Creates `/usr/local/etc/telegraf.d` if it is missing, as `telegraf:telegraf 0750`. os-telegraf's `setup.sh` only creates it when the service starts.
 - Cleanup for upgraders:
-  - remove the three legacy sudoers lines with `lineinfile state=absent`, validated by `visudo -cf`;
+  - remove every historical sudoers variant with `lineinfile state=absent`, each validated by `visudo -cf`. Variants include the 2021 `/sbin/pfctl -s info` line, `Cmnd_Alias PFIFGW`, `Defaults!PFIFGW` and its escaped `Defaults\!PFIFGW` form, and duplicates;
+  - remove them in dependency order — `Defaults` first, then `Cmnd_Alias`, then the `telegraf ALL=` rule — so no intermediate file references an undefined alias;
   - delete `/usr/local/etc/telegraf.d/suricata.conf`;
   - delete `/usr/local/opnsense/service/templates/OPNsense/IDS/custom.yaml`;
   - delete `/tmp/eve.json`.
 - Restarts Telegraf.
 - GUI toggles are not automated.
 
-**Graylog content pack columns**
-- Rename `tracker`→`rid` in all six extractors.
-- Name the trailing TCP columns per filterlog: `…,tcp-flags,sequence,ack,window,urg,tcp-options`.
-- Name the trailing UDP column `datalength`, and drop the extra columns.
-- The exact per-protocol headers are fixed in the plan from filterlog's `description.txt`.
-- No dashboard query uses the renamed columns.
+**Graylog content pack columns and GeoIP rule**
+- Normalize all six extractors' CSV headers to one naming scheme with the correct column count per protocol:
+  - IPv4 and IPv6 common fields;
+  - TCP `…,datalength,tcp-flags,sequence,ack,window,urg,tcp-options`;
+  - UDP `…,src-port,dst-port,datalength`;
+  - ICMP per type as filterlog emits it.
+- Specific fixes: rename `tracker`→`rid`; `ipversion`→`ip-version`; `flags`→`ip-flags`; drop the spurious `opnsense-rid`; correct IPv6 TCP to 26 columns.
+- The exact headers are fixed in the plan from filterlog's `description.txt` at 26.7.4.
+- Fields the dashboards query must keep their names: `interface`, `action`, `src-ip`, `dst-ip`, `dst-port`, `protocol-name`.
+- The GeoIP rule sets only `src-ip-geo-country`, because GeoLite2-Country has no coordinates or city.
+- The content pack is fixed at the source. The docs never tell users to hand-edit extractors, because the 7.1.6 extractor-edit UI is known to error (upstream #70 comments).
 
 **`docs/opnsense.md`** lists the 26.7 GUI steps in order:
 1. Services → Telegraf → General: Enable, **Run as Root**.
@@ -198,11 +242,31 @@ Other changes in the script:
 4. System → Settings → Logging → Remote: UDP to the Graylog host on port 1514, **RFC5424 enabled**, application `filterlog`.
 5. System → Settings → Miscellaneous: the Thermal Sensors hardware option.
 6. Copy the files, by hand or with Ansible.
-7. Verify with `telegraf --test`.
+7. Verify **as root** with `telegraf --test --config /usr/local/etc/telegraf.conf --config-directory /usr/local/etc/telegraf.d`. Testing as the `telegraf` user hides root-only failures, including the `pf` failure in #89 and the flock errors in #86.
+   - `pluginctl -r return_gateways_status` is still valid for checking dpinger values; it maps to `dpinger_status()` at 26.7.4.
 
 ### 5.3 Monitoring stack
 
 `docker-compose.yaml` has no `version:` key and one bridge network.
+
+**Profiles (D10).**
+- `influxdb` and `grafana` always run.
+- `mongodb`, `opensearch`, `graylog` and `geoipupdate` carry `profiles: [logs]`. `graylog-init` carries `profiles: [init]`.
+- `.env.example` sets `COMPOSE_PROFILES=logs`, so the full stack is the default.
+- In metrics-only mode the OpenSearch datasource is still provisioned but unreachable. The Firewall row shows "No data" and nothing else is affected. The README states this.
+
+**Storage.**
+- Every stateful service uses a named volume: mongodb data and config, `opensearch_data`, `graylog_data` at `/usr/share/graylog/data` (as in Graylog's official compose), `geoip_data`, `influxdb_data` (plus config), and `grafana_data`.
+- Graylog's volume must not be bind-mounted over an empty host directory. That hides the image's `graylog.conf` (upstream #68). The docs say so.
+- `GRAYLOG_JOURNAL_MAX_SIZE` (default `2gb`, documented range `512mb`–`20gb`) is passed as `GRAYLOG_MESSAGE_JOURNAL_MAX_SIZE`. Graylog's preflight check refuses to start without that much free disk (#50).
+- `docs/stack.md` gives disk sizing, including OpenSearch's 95% flood-stage watermark, above which indices become read-only.
+
+**Host requirements** (README and `docs/stack.md`):
+- x86-64 with **AVX**, or arm64 **ARMv8.2-A** or later. Every MongoDB version Graylog 7.1 supports requires this, verified against MongoDB's production notes.
+- On Proxmox the default CPU type (`x86-64-v2-AES`) lacks AVX. Use `x86-64-v3`, which keeps live migration, or `host` (#45, #37).
+- The docs give an `grep -qw avx /proc/cpuinfo` pre-check. Metrics-only mode has no AVX requirement.
+- `vm.max_map_count ≥ 262144` for OpenSearch.
+- About 4 GB of RAM for the full stack at default heaps.
 
 | Service | Key settings |
 |---|---|
@@ -216,13 +280,18 @@ Other changes in the script:
 
 `graylog-init.sh`:
 1. Waits for `/api/system/lbstatus` to report ALIVE, with a bounded timeout.
-2. Finds the index set by prefix `opnsense_filterlog`, or creates it. Rotation period is `GRAYLOG_INDEX_ROTATION` (ISO-8601, default `P1D`). Max index count is `GRAYLOG_INDEX_MAX_COUNT`, clamped to 1–3650, default 30.
-3. Uploads the content pack if its id/rev is absent, and installs it if not installed.
-4. Assigns the `OPNsense / filterlog` stream to the index set with `remove_matches_from_default_stream=true`.
-5. Makes sure the GeoIP pipeline is connected to the stream.
-6. Sets the message-processor order so the Pipeline Processor runs after the Message Filter Chain, and enables both.
-7. Prints what it did and never prints secrets.
-8. Exits non-zero if any API call fails.
+2. Waits for the GeoIP database file to appear in the shared volume, with a bounded timeout (`GEOIP_WAIT_SECONDS`, default 600, clamped 0–3600).
+   - New MaxMind keys can take minutes to activate (#34, #62).
+   - On timeout it warns and continues. The lookup adapter picks the file up once it appears.
+3. Finds the index set by prefix `opnsense_filterlog`, or creates it. Rotation period is `GRAYLOG_INDEX_ROTATION` (ISO-8601, default `P1D`). Max index count is `GRAYLOG_INDEX_MAX_COUNT`, clamped to 1–3650, default 30.
+4. Uploads the content pack if its id/rev is absent, and installs it if not installed.
+5. Assigns the `OPNsense / filterlog` stream to the index set with `remove_matches_from_default_stream=true`.
+6. Makes sure the GeoIP pipeline is connected to the stream.
+7. Sets the message-processor order to **Message Filter Chain → Stream Rule Processor → Pipeline Processor**, all enabled (#52, #34, #26).
+   - Graylog 5 and later split stream matching into its own processor (migration `V20220818112023`).
+   - The GeoIP pipeline is attached to a stream, so extractors must run first, then stream routing, then pipelines.
+8. Prints what it did and never prints secrets.
+9. Exits non-zero if any API call fails.
 
 The GeoIP lookup adapter path in the content pack changes to the mounted volume. The mount point is fixed in the plan after checking Graylog's `allowed_auxiliary_paths` default.
 
@@ -238,11 +307,14 @@ Grafana provisioning:
 - Grafana admin user and password
 - InfluxDB user, password, org, bucket, retention, admin token, and Grafana token
 - `GRAYLOG_PASSWORD_SECRET`, `GRAYLOG_ROOT_PASSWORD_SHA2`, `GRAYLOG_EXTERNAL_URI`
-- `GRAYLOG_HEAP`, `OPENSEARCH_HEAP`
+- `GRAYLOG_HEAP`, `OPENSEARCH_HEAP`, `GRAYLOG_JOURNAL_MAX_SIZE`
 - `GRAYLOG_INDEX_ROTATION`, `GRAYLOG_INDEX_MAX_COUNT`
-- MaxMind account ID, licence key, and update hours
+- MaxMind account ID, licence key, update hours, and `GEOIP_WAIT_SECONDS`
+- `COMPOSE_PROFILES`
 
 Secrets have no working defaults: the placeholders in `.env.example` must be replaced. `docs/stack.md` shows how to generate each one.
+
+Settings read by this repo's own scripts (`graylog-init.sh`, the e2e scripts) are clamped in code. Settings passed straight to an upstream image (heaps, journal size, ports) cannot be clamped by compose. For those, the README table documents the supported range and says the values are passed through unvalidated.
 
 The Telegraf **write token** is the one manual step in the stack. The user creates it in the InfluxDB UI and pastes it into OPNsense. The reason is that InfluxDB 2.9 stores tokens hashed and does not accept caller-chosen token values, and the init process must not print secrets to logs.
 
@@ -266,16 +338,54 @@ Main dashboard fixes:
 - The `src_ip`, `dst_ip` and `dst_port` variables use `src-ip`, `dst-ip` and `dst-port`.
 - Gateway Summary mappings are `"0"` OFFLINE (red), `"1"` ONLINE (green), `"2"` DEGRADED (orange).
 - `WAN` becomes a query variable: interface `name` where `friendlyname` starts with `WAN`. `LAN` becomes interfaces not in `$WAN`. Both remain editable. `docs/stack.md` explains overrides.
+- `WAN` and `LAN` return **text = `friendlyname`, value = `name`**, so repeated rows are titled `${WAN:text}` / `${LAN:text}` (for example "WAN", "LAN", "IOT"), while queries filter on the device name (#80 comments).
+- Host filtering is complete (#33):
+  - add `AND source:$Host` to panel 111;
+  - add `r.host =~ /^${Host:regex}$/` to the `LAN`, `iface` and `WAN` variables;
+  - add `source:$Host` to the `src_ip`, `dst_ip` and `dst_port` term queries;
+  - uppercase the `and` in "Top IP Blocked".
+- Gateway RTT and Loss use `aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)` and one legend entry per `gateway_name` (#79). The panel description says the value is dpinger's rolling average to the monitor IP.
+- Active Users sets `noValue: 0`. Its description says it counts shell sessions, not GUI logins (#42, #32).
+- Upstream fixes that must survive the migration:
+  - LAN/WAN recv/sent naming and direction on panels 34/36/40/49/50/51 (bits) and 42/53 (packets), including `*8.0` on bits and `difference(nonNegative: true)` on monthly totals (`8fa23f1`);
+  - summary-table base threshold colour stays `"text"`, which keeps light mode readable (#25).
 
-The Suricata dashboard gets the schema migration only.
+Suricata dashboard:
+- Schema migration.
+- The "Top Alert Signatures" query uses `v.defaultBucket` instead of `"opnsense"` (#77, PR #44).
+- "Alert Logs" gains `alert_action` and `alert_signature_id` columns (#22). The built-in input flattens eve JSON exactly as the old config did.
 
-### 5.5 Cross-file contracts (unchanged, now tested)
+### 5.5 Cross-file contracts (all enforced by tests)
 
 | Producer | Consumer |
 |---|---|
 | Plugin measurement, tag and field names and **types** | Flux filters in the main dashboard |
 | Extractor CSV headers and GeoIP rule field names | Lucene queries and variables |
 | Datasource UIDs (provisioned) | Dashboards, which refer to datasources only through `${dataSource}` / `${ESdataSource}` |
+| Telegraf `host` tag on every measurement | `Host` variable (from `system`) and all Flux host filters |
+| Influx `host` tag (router FQDN) | Graylog `source` field (syslog HOSTNAME; OPNsense syslog-ng uses `use_fqdn(yes)`), matched by `source:$Host` in Lucene. Overriding the os-telegraf Hostname option breaks this match; the docs say so. |
+| Influx `interface.name` (device name) | filterlog `interface` field, because `$iface` is read from Influx and used in Lucene |
+| Bucket from the datasource's `defaultBucket` | Every Flux `from(bucket: v.defaultBucket)`; no literal bucket names anywhere |
+
+### 5.6 Troubleshooting content (`docs/troubleshooting.md`)
+
+Each entry comes from a recurring upstream issue:
+
+| Symptom | Cause and fix |
+|---|---|
+| Graylog receives UDP but the stream and Firewall row stay empty | RFC5424 not enabled on the remote target, or the port doesn't match `SYSLOG_PORT` (#47, #49, #57). |
+| Telegraf log shows `/write?db=telegraf` to localhost | InfluxDB v1 output enabled by mistake. Disable it, and point the v2 URL at the Docker host (#25). |
+| `pf` "Permission denied", `flock()` errors, gateway values all 0, or a blank dashboard after an upgrade | Run as Root is off. Test as root (#1, #86, #89). |
+| `exec: command timed out` | Check `timeout` in `custom.conf`, then run `time /usr/local/bin/telegraf_pfifgw.php` (#83). |
+| Changed a password in `.env` but it had no effect | Init values only apply on first start. Reset procedures for Grafana, InfluxDB and Graylog (#65). |
+| Datasource "Bad Gateway" | Don't replace the service-name URLs with host IPs; OpenSearch is not published to the host (#51). |
+| Map empty | Check `geoipupdate` logs and MaxMind credentials (new keys take minutes to activate), then use the lookup-table "Test lookup" in Graylog (#48, #58, #71, #62). |
+| WAN panels empty after renaming interfaces | WAN is detected by a description starting with "WAN". Rename the interface or override the variable (#81, #56). |
+| mongodb container exits with code 132 or an AVX warning | The host CPU lacks AVX. Change the VM CPU type or use metrics-only mode (#45, #37). |
+| Graylog won't start: journal or preflight disk error, or missing `graylog.conf` | Free disk or lower `GRAYLOG_JOURNAL_MAX_SIZE`. Don't bind-mount over `/usr/share/graylog/data` (#50, #68). |
+| Gateway RTT/Loss empty | Monitoring is disabled for that gateway, or dpinger has no data yet. Check with `pluginctl -r return_gateways_status` (#64, #39). |
+| Active Users shows 0 | Expected when nobody is logged in to a shell. GUI sessions are not counted (#42). |
+| Manually removing old sudoers lines on tcsh | `!` expands even inside quotes on tcsh. Use `visudo`, or run under `sh` (#63). |
 
 ## 6. Testing
 
@@ -283,21 +393,58 @@ The Suricata dashboard gets the schema migration only.
    - Stub `config.inc`, `util.inc`, `interfaces.inc`, `plugins.inc.d/dpinger.inc` and a stub `Gateways` class. The stubs return fixture data shaped like the 26.7.4 source.
    - Run the script with `php -d include_path=tests/php/stubs`.
    - Compare its output with golden files.
-   - Cases: normal router; dpinger `~`; `monitor_disable='1'`; names with spaces, commas and `=`; interface without IPv6; interface missing from `ifconfig` details; degraded gateway states.
+   - Cases:
+     - normal router
+     - names with spaces, commas and `=`
+     - interface without IPv6
+     - interface missing from `ifconfig` details
+     - no `host=` tag in any output line
+   - Gateway cases:
+     - dpinger `~` with status `down`, as at dpinger startup: numeric fields omitted, `status="0"`
+     - down gateway with `"0.0 ms"` / `"100.0 %"`: `loss=100`, `status="0"`
+     - partial loss `"12.5 %"`: `loss=12.5` (PR #35 regression)
+     - `"1.2 ms"`: `delay=1.2` (#79)
+     - `monitor_disable='1'` with status `none`: `status="1"` and `monitor="Unmonitored"`
+     - degraded states `delay`, `loss` and `delay+loss`: `status="2"`
+     - a config-side `loss` key in the `Gateways` stub is ignored
 2. **Shell tests** (`tests/shell/`): a fake `sysctl` on `PATH` replays Intel coretemp, ACPI, AMD and "no sensors" fixtures. The output is compared with golden files.
 3. **Static checks** (`tests/static.sh`):
-   - `python3 -m json.tool` / `jq` on every JSON file
-   - `php -l`
-   - `shellcheck`
-   - `docker compose config -q` with `.env.example`
-   - `ansible-playbook --syntax-check` and `ansible-lint`
-   - `yamllint` on provisioning and workflow files
-   - a grep asserting that no `bsmithio`, `Bsmith101`, `bsmithio.com` or `nuuls` references remain
+   - Syntax and lint:
+     - `python3 -m json.tool` / `jq` on every JSON file
+     - `php -l`
+     - `shellcheck`
+     - `docker compose config -q` with `.env.example`, both with `COMPOSE_PROFILES=logs` and with it empty
+     - `ansible-playbook --syntax-check` and `ansible-lint`
+     - `yamllint` on provisioning and workflow files
+   - Project-specific checks:
+     - A grep asserting that no `bsmithio`, `Bsmith101`, `bsmithio.com` or `nuuls` references remain.
+     - **Datasource references** (PR #16): a jq walk asserting every panel, target and variable datasource uid is `${dataSource}` or `${ESdataSource}` (annotation built-ins excepted).
+     - **No literal buckets** (#77): fail on `from(bucket: "`. Every Flux query uses `v.defaultBucket`.
+     - **Host filters** (#33): every Flux target and query variable contains `r.host =~ /^${Host:regex}$/`, except the `Host` variable itself. Every Lucene target and terms variable contains `source:$Host`. No lowercase ` and ` / ` or ` operators appear in Lucene queries.
+     - **Removed APIs**: the plugin contains none of `get_interfaces_info`, `find_interface_network`, `return_gateways_status` or `convert_seconds_to_hms`.
+     - **`custom.conf`** (#4, #83): the commands are exactly `/usr/local/bin/telegraf_pfifgw.php` and `/bin/sh /usr/local/bin/telegraf_temperature.sh`, there is no `sudo`, and `timeout = "10s"`.
+     - **Ansible** (PR #36): every task touching sudoers has `validate: /usr/local/sbin/visudo -cf %s`.
+     - **Light mode** (#25): summary-table base threshold colour is `"text"`.
+     - **LAN/WAN direction** (`8fa23f1`): the recv/sent display-name overrides on the named panels map `bytes_recv`→"…Recv…" and `bytes_sent`→"…Sent…". Bits queries multiply by `8.0`.
 4. **End-to-end** (`tests/e2e/run.sh`):
    - Setup: compose project `opnsense-dash-test`; ports bound to `127.0.0.1` on non-default numbers; OpenSearch heap 512m, Graylog heap 512m–1g; MaxMind's public **test** database mounted in place of GeoLite2; then `graylog-init`.
-   - Syslog: send synthetic RFC5424 filterlog lines over UDP (IPv4/IPv6 × TCP/UDP/ICMP, block/pass, source IPs from the test database). Assert that the parsed fields and `src-ip-geo-country` are present in OpenSearch.
-   - Metrics: write golden plugin output and synthetic `system`/`cpu`/`mem`/`disk`/`processes`/`pf`/`net`/`temperature`/`suricata` points to InfluxDB.
-   - Queries: run **every panel target and every query variable** of both dashboards through Grafana `/api/ds/query`, with variables resolved. Fail on any error frame or empty result.
+   - The InfluxDB bucket is deliberately **not** named `opnsense`, so literal-bucket bugs fail.
+   - Syslog:
+     - Send synthetic RFC5424 filterlog lines over UDP (IPv4/IPv6 × TCP/UDP/ICMP, block/pass/match, source IPs from the test database).
+     - They come from **two hosts**, `fw-a.example.lan` and `fw-b.example.lan`, whose FQDNs also appear as Influx `host` tags.
+     - Assert that every normalized field and `src-ip-geo-country` is present in OpenSearch.
+   - Metrics:
+     - Write golden plugin output and synthetic `system`/`cpu`/`mem`/`disk`/`processes`/`pf`/`net`/`temperature`/`suricata` points for both hosts.
+     - Include one `system` point without `n_users`.
+     - Include `net` counters with different recv and sent rates.
+     - Include `suricata` alerts carrying `alert_action` and `alert_signature_id`.
+   - Queries: run **every panel target and every query variable** of both dashboards through Grafana `/api/ds/query`, with variables resolved. Fail on any error frame or empty result. Additionally:
+     - **Host isolation** (#33): with `Host=fw-a`, no `fw-b` values appear in any result.
+     - **Direction** (`8fa23f1`): the "Bits Recv" series equals the synthetic recv rate × 8.
+   - Metrics-only mode (D10):
+     - Bring the stack up with `COMPOSE_PROFILES=` (empty).
+     - Assert that Grafana and InfluxDB start and every Flux panel returns data.
+     - Assert that OpenSearch panels fail cleanly, with no Grafana crash.
    - Screenshots: capture both dashboards with Playwright into `docs/images/`.
    - Teardown: `docker compose -p opnsense-dash-test down -v`. The maintainer's other containers on the host are never touched.
 5. **CI** (`.github/workflows/ci.yml`): static checks and unit tests on pushes and PRs. End-to-end on `workflow_dispatch`.
@@ -314,7 +461,7 @@ Branch `v2-modernization`:
 | 2 | Router side: plugin rewrite and PHP tests, temperature script and shell tests, `custom.conf`, Suricata removal, Ansible, extractor columns, `docs/opnsense.md`. |
 | 3 | Stack: compose, `.env.example`, provisioning, `graylog-init`, geoipupdate, `docs/stack.md`. |
 | 4 | Dashboards: migrated JSON and fixes, end-to-end suite, screenshots. |
-| 5 | CI, `CHANGELOG.md`, final README, `docs/troubleshooting.md`, `CLAUDE.md`. |
+| 5 | CI, `CHANGELOG.md` (including "Planned" for v2.1), final README, `docs/troubleshooting.md` (§5.6), `CLAUDE.md`. |
 
 Every commit carries the docs for its own change. Commits are gated on their checks passing. After commit 5 the branch is pushed and a PR opened. The maintainer merges, leaves the fork network, and enables Issues.
 
@@ -326,6 +473,14 @@ Every commit carries the docs for its own change. Commits are gated on their che
 - Replacing Graylog with a lighter pipeline.
 - Automating OPNsense GUI settings through its API.
 - New panels beyond the fixes listed.
+
+Planned for v2.1 (D11, D12). Recorded in `CHANGELOG.md` under "Planned", and as issues once Issues are enabled:
+- CARP/VIP state metrics (#69).
+- dst-ip GeoIP enrichment.
+- A separate "Firewall Events" dashboard (PR #54, #41).
+- Ping and speed-test panels (#79, PR #54).
+
+These will be implemented fresh, because upstream code is unlicensed.
 
 ## 9. Risks and open points (resolved during implementation)
 

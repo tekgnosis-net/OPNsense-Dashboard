@@ -40,6 +40,11 @@ need("README.md", "## Supported versions", "## How it works", "```mermaid", "CHA
      "docs/images/opnsense.png")
 need(".github/workflows/ci.yml", "tests/run-static.sh", "tests/run-unit.sh", "tests/e2e/run.sh")
 
+# Minimum lengths the services enforce at first start (InfluxDB onboarding;
+# Graylog Configuration.validatePasswordSecret), documented where users set them.
+need(".env.example", "8-72 characters", "at least 16 characters")
+need("docs/troubleshooting.md", "passwords must be between 8 and 72", "password_secret",
+     "MongoDB cannot start", "mongo:7.0")
 
 def forbid(path, pattern, why):
     text = (ROOT / path).read_text()

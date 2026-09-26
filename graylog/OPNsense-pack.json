@@ -5,8 +5,8 @@
   "name": "OPNsense Dashboard",
   "summary": "This pack includes everything needed to setup Graylog for the dashboard.",
   "description": "",
-  "vendor": "bsmithio",
-  "url": "https://github.com/bsmithio/OPNsense-Dashboard",
+  "vendor": "tekgnosis-net",
+  "url": "https://github.com/tekgnosis-net/OPNsense-Dashboard",
   "parameters": [],
   "entities": [
     {

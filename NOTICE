@@ -1,0 +1,28 @@
+OPNsense-Dashboard
+Copyright (c) 2026 tekgnosis-net
+https://github.com/tekgnosis-net/OPNsense-Dashboard
+
+This project is maintained independently at the address above. It began as a
+fork and carries forward the work of earlier projects:
+
+  2020        VictorRobellini/pfSense-Dashboard
+              https://github.com/VictorRobellini/pfSense-Dashboard
+              The original pfSense dashboard, Telegraf plugins and Graylog setup.
+
+  2021-2023   bsmithio/OPNsense-Dashboard
+              https://github.com/bsmithio/OPNsense-Dashboard
+              The OPNsense port, Flux queries, firewall panels, Suricata
+              dashboard and RFC5424 extractors.
+
+Contributors to those projects, from the git history (alphabetical):
+Alex Andrascu, Brendan Smith, Evan Richardson, mark, Matt Bentley,
+Matthias (Maddosaurus), NKnusperer, tiny6996, Victor Robellini, Will Blanton.
+
+Thanks carried over from the upstream README: /u/trumee (Reddit) for the
+interface summary approach, and subract for the RFC5424 extractors
+(IRQ10/Graylog-OPNsense_Extractors pull request 11).
+
+Licensing: the upstream repositories were published without a license. The
+MIT License in LICENSE covers changes made in this repository after commit
+48119ee (2023-10-10, the last upstream commit). Code carried over from the
+upstream projects remains the work of its respective authors.

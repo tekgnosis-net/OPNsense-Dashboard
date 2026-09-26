@@ -1,44 +1,57 @@
-# What's Monitored
-- Active Users
-- Uptime
-- CPU Load total
-- Disk Utilization
-- Memory Utilization
-- CPU Utilization per core (Single Graph)
-- Ram Utilization time graph
-- Load Average
-- Load Average Graph
-- CPU and ACPI Temperature Sensors
-- Gateway Response time - dpinger
-- List of interfaces with IPv4, IPv6, Subnet, MAC, Status and pfSense labels thanks to [/u/trumee](https://www.reddit.com/r/PFSENSE/comments/fsss8r/additional_grafana_dashboard/fmal0t6/)
-- WAN Statistics - Traffic & Throughput (Identified by dashboard variable)
-- LAN Statistics - Traffic & Throughput (Identified by dashboard variable)
-- Firewall Statistics - Blocked Ports, Protocols, Events, Blocked IP Locations, and Top Blocked IP
-# Changelog
+# OPNsense-Dashboard
 
+Grafana dashboards for OPNsense firewalls: system health, interfaces,
+gateways, firewall blocks with GeoIP, and Suricata alerts, fed by Telegraf,
+Graylog and InfluxDB.
 
-Converted InfluxQL queries to Flux.
+This project is maintained here. It began as a fork of
+[bsmithio/OPNsense-Dashboard](https://github.com/bsmithio/OPNsense-Dashboard),
+itself based on
+[VictorRobellini/pfSense-Dashboard](https://github.com/VictorRobellini/pfSense-Dashboard);
+see [Credits and history](#credits-and-history).
 
-Converted pfSense functions to OPNsense.
+## What's monitored
 
-Added Firewall panels.
+- Active users, uptime, CPU load, per-core CPU, load average, RAM, disk
+- CPU and ACPI temperature sensors
+- Gateway round-trip time and loss (dpinger)
+- Interfaces with IPv4/IPv6 addresses, subnet, MAC, status and OPNsense description
+- WAN and LAN traffic and throughput
+- Firewall blocks: events, ports, protocols, top source IP and a GeoIP map
+- Suricata alerts (separate dashboard)
 
-Added subnet info to Interface Summary panels
+## Documentation
 
-Added Suricata dashboard, see instructions [here](./configure.md#configuration-for-the-suricata-dashboard-optional)
+- [docs/opnsense.md](docs/opnsense.md): router setup (Telegraf, collectors, remote syslog)
+- [docs/stack.md](docs/stack.md): monitoring host setup (Docker stack, Graylog, Grafana)
+- [docs/troubleshooting.md](docs/troubleshooting.md)
 
-Added RFC5424 support thanks to [subract](https://github.com/IRQ10/Graylog-OPNsense_Extractors/pull/11)
+## Repository layout
 
-![Main Dashboard](Grafana-OPNsense.png)
+| Path | Contents |
+|---|---|
+| `opnsense/` | Files installed on the firewall: Telegraf exec scripts (`bin/`), Telegraf config (`telegraf.d/`), Ansible playbook (`ansible/`) |
+| `graylog/` | Graylog content pack |
+| `grafana/dashboards/` | Dashboard JSON |
+| `docker-compose.yaml` | Monitoring host stack |
+| `tests/` | Static checks, unit tests and the end-to-end suite |
+| `docs/` | Setup guides, troubleshooting and design records |
 
-![Suricata Dashboard](Grafana-OPNsense-Suricata.png)
+## Credits and history
 
-# Running on
+This repository continues the work of:
 
-    Grafana 9.2.10
-    InfluxDB 2.6.1
-    Graylog 5.0.2
+- **VictorRobellini/pfSense-Dashboard** (2020): the original pfSense dashboard,
+  Telegraf plugins and Graylog setup.
+- **bsmithio/OPNsense-Dashboard** (2021–2023): the OPNsense port, Flux
+  queries, firewall panels, Suricata dashboard and RFC5424 extractors.
 
+Thanks also to [/u/trumee](https://www.reddit.com/r/PFSENSE/comments/fsss8r/additional_grafana_dashboard/fmal0t6/)
+for the interface summary approach and to
+[subract](https://github.com/IRQ10/Graylog-OPNsense_Extractors/pull/11) for the
+RFC5424 extractors. Contributors are listed in [NOTICE](NOTICE).
 
-# Configuration
-Configuration instructions can be found [here](./configure.md).
+## License
+
+Changes made in this repository are released under the [MIT License](LICENSE).
+The upstream projects were published without a license; see [NOTICE](NOTICE).

@@ -39,31 +39,31 @@
 
   - name: Download telegraf config
     get_url:
-      url: https://raw.githubusercontent.com/bsmithio/OPNsense-Dashboard/master/config/custom.conf
+      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/telegraf.d/custom.conf
       dest: /usr/local/etc/telegraf.d/custom.conf
       mode: '0644'
 
   - name: Download telegraf_pfifgw.php
     get_url:
-      url: https://raw.githubusercontent.com/Bsmith101/OPNsense-Dashboard/master/plugins/telegraf_pfifgw.php
+      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_pfifgw.php
       dest: /usr/local/bin/telegraf_pfifgw.php
       mode: '0755'
 
   - name: Download telegraf_temperature.sh
     get_url:
-      url: https://raw.githubusercontent.com/Bsmith101/OPNsense-Dashboard/master/plugins/telegraf_temperature.sh
+      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_temperature.sh
       dest: /usr/local/bin/telegraf_temperature.sh
       mode: '0755'
 
   - name: Download Suricata.conf
     get_url:
-      url: https://raw.githubusercontent.com/bsmithio/OPNsense-Dashboard/master/config/suricata/suricata.conf
+      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/config/suricata/suricata.conf
       dest: /usr/local/etc/telegraf.d/suricata.conf
       mode: '0644'
 
   - name: Download suricata custom.yaml
     get_url:
-      url: https://raw.githubusercontent.com/bsmithio/OPNsense-Dashboard/master/config/suricata/custom.yaml
+      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/config/suricata/custom.yaml
       dest: /usr/local/opnsense/service/templates/OPNsense/IDS/custom.yaml
       mode: '0644'
 

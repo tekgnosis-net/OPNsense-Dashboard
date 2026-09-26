@@ -1,152 +1,132 @@
-#!/usr/local/bin/php-cgi -f
+#!/usr/local/bin/php
 <?php
-require_once("config.inc");
-require_once("interfaces.inc");
-require_once("plugins.inc.d/dpinger.inc");
-require_once("util.inc");
 
-$host = gethostname();
-$source = "pfconfig";
+/*
+ * Telegraf exec input for OPNsense-Dashboard.
+ *
+ * Prints InfluxDB line protocol for two measurements:
+ *   interface  one line per enabled interface: addresses, MAC, description, status
+ *   gateways   one line per gateway: monitor, dpinger delay/stddev/loss, status
+ * Telegraf adds the host tag. Needs Services > Telegraf > General > Run as Root.
+ * Written against opnsense/core 26.7.4.
+ */
 
-$iflist = get_configured_interface_with_descr();
-foreach ($iflist as $ifname => $friendly) {
-    $ifsinfo = get_interfaces_info();
-    $ifinfo = $ifsinfo[$ifname];
-    $ifstatus = $ifinfo['status'];
-    $realif = get_real_interface($ifname);
-    $ip4addr = get_interface_ip($ifname);
-    $ip4subnet = interfaces_primary_address($realif, $ifconfig_details)[1];
-    $ip6addr = get_interface_ipv6($ifname);
-    $ip6subnet = interfaces_primary_address6($realif, $ifconfig_details)[1];
-    $mac = get_interface_mac($realif);
+// Keep PHP errors off stdout so they can never corrupt the line protocol.
+ini_set('display_errors', 'stderr');
 
-    if (!isset($ifinfo)) {
-        $ifinfo = "Unavailable";
-    }
-    if (strtolower($ifstatus) == "up") {
-        $ifstatus = 1;
-    }
-    if (strtolower($ifstatus) == "active") {
-        $ifstatus = 1;
-    }
-    if (strtolower($ifstatus) == "no carrier") {
-        $ifstatus = 0;
-    }
-    if (strtolower($ifstatus) == "down") {
-        $ifstatus = 0;
-    }
-    if (!isset($ifstatus)) {
-        $ifstatus = 2;
-    }
-    if (!isset($ip4addr)) {
-        $ip4addr = "Unassigned";
-    }
-    if (!isset($ip4subnet)) {
-        $ip4subnet = "Unassigned";
-    }
-    if (!isset($ip6addr)) {
-        $ip6addr = "Unassigned";
-    }
-    if (!isset($ip6subnet)) {
-        $ip6subnet = "Unassigned";
-    }
-    if (!isset($realif)) {
-        $realif = "Unassigned";
-    }
-    if (!isset($mac)) {
-        $mac = "Unavailable";
-    }
+require_once 'config.inc';
+require_once 'util.inc';
+require_once 'interfaces.inc';
+require_once 'plugins.inc.d/dpinger.inc';
 
+/* Tag value: escape the characters line protocol uses as separators. */
+function lp_tag($value, string $fallback): string
+{
+    $value = trim(str_replace(["\r", "\n"], ' ', (string)$value));
+    if ($value === '') {
+        $value = $fallback;
+    }
+    return str_replace([',', '=', ' '], ['\,', '\=', '\ '], $value);
+}
+
+/* String field value: double-quoted, with backslashes and quotes escaped. */
+function lp_string($value, string $fallback): string
+{
+    $value = trim(str_replace(["\r", "\n"], ' ', (string)$value));
+    if ($value === '') {
+        $value = $fallback;
+    }
+    return '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $value) . '"';
+}
+
+/* dpinger reports "12.3 ms" or "0.0 %", and "~" while it has no data yet. */
+function lp_number($value): ?string
+{
+    if (!is_string($value) || !preg_match('/^\s*(-?[0-9]+(?:\.[0-9]+)?)/', $value, $match)) {
+        return null;
+    }
+    return (string)(float)$match[1];
+}
+
+/* 1 = up, 0 = down, 2 = unknown; the rule OPNsense's interface overview uses. */
+function interface_status(?array $details): int
+{
+    if ($details === null) {
+        return 2;
+    }
+    $status = in_array('up', $details['flags'] ?? [], true) ? 'up' : 'down';
+    if (!empty($details['status']) && !in_array($details['status'], ['active', 'running'], true)) {
+        $status = $details['status'];
+    }
+    if ($status === 'up' || $status === 'associated') {
+        return 1;
+    }
+    if ($status === 'down' || strpos($status, 'no carrier') === 0) {
+        return 0;
+    }
+    return 2;
+}
+
+/* "1" online, "0" offline, "2" degraded (delay and/or loss above threshold). */
+function gateway_status(?string $status): string
+{
+    switch ($status) {
+        case 'none':
+            return '1';
+        case 'down':
+        case 'force_down':
+            return '0';
+        case 'delay':
+        case 'loss':
+        case 'delay+loss':
+            return '2';
+        default:
+            return 'Unavailable';
+    }
+}
+
+$details = legacy_interfaces_details();
+
+foreach (get_configured_interface_with_descr() as $ifname => $descr) {
+    $device = get_real_interface($ifname);
+    $ifinfo = $details[$device] ?? null;
+    [$ip4, $net4] = interfaces_primary_address($ifname, $details);
+    [$ip6, $net6] = interfaces_primary_address6($ifname, $details);
     printf(
-        "interface,host=%s,name=%s,ip4_address=%s,ip4_subnet=%s,ip6_address=%s,ip6_subnet=%s,mac_address=%s,friendlyname=%s,source=%s status=%s\n",
-        $host,
-        $realif,
-        $ip4addr,
-        $ip4subnet,
-        $ip6addr,
-        $ip6subnet,
-        $mac,
-        $friendly,
-        $source,
-        $ifstatus,
+        "interface,name=%s,ip4_address=%s,ip4_subnet=%s,ip6_address=%s,ip6_subnet=%s,"
+        . "mac_address=%s,friendlyname=%s,source=pfconfig status=%d\n",
+        lp_tag($device, 'Unassigned'),
+        lp_tag($ip4, 'Unassigned'),
+        lp_tag($net4, 'Unassigned'),
+        lp_tag($ip6, 'Unassigned'),
+        lp_tag($net6, 'Unassigned'),
+        lp_tag($ifinfo['macaddr'] ?? null, 'Unavailable'),
+        lp_tag($descr, strtoupper($ifname)),
+        interface_status($ifinfo)
     );
 }
 
-$gw_array = (new \OPNsense\Routing\Gateways(legacy_interfaces_details()))->gatewaysIndexedByName();
-//$gw_statuses is not guarranteed to contain the same number of gateways as $gw_array
-$gw_statuses = return_gateways_status();
+$dpinger = dpinger_status();
 
-$debug = false;
-
-if ($debug) {
-    print_r($gw_array);
-    print_r($gw_statuses);
-}
-
-foreach ($gw_array as $gw => $gateway) {
-
-    //take the name from the $a_gateways list
-    $name = $gateway["name"];
-
-    $delay = $gw_statuses[$gw]["delay"];
-    $stddev = $gw_statuses[$gw]["stddev"];
-    $status = $gw_statuses[$gw]["status"];
-    $loss = $gw_statuses[$gw]["loss"];
-
-    $interface = $gateway["interface"];
-    $gwdescr = $gateway["descr"];
-    $monitor = $gateway["monitor"];
-    $source = $gateway["gateway"];
-    
-    if (!isset($monitor)) {
-        $monitor = "Unavailable";
+foreach ((new \OPNsense\Routing\Gateways())->gatewaysIndexedByName() as $name => $gateway) {
+    $state = $dpinger[$name] ?? [];
+    $monitor = !empty($gateway['monitor_disable']) ? 'Unmonitored' : ($gateway['monitor'] ?? '');
+    $fields = [
+        'monitor=' . lp_string($monitor, 'Unavailable'),
+        'source=' . lp_string($gateway['gateway'] ?? '', 'Unavailable'),
+        'gwdescr=' . lp_string($gateway['descr'] ?? '', 'Unassigned'),
+    ];
+    foreach (['delay', 'stddev', 'loss'] as $key) {
+        $number = lp_number($state[$key] ?? null);
+        if ($number !== null) {
+            $fields[] = "{$key}={$number}";
+        }
     }
-    if (!isset($source)) {
-        $source = "Unavailable";
-    }
-    if (!isset($delay)) {
-        $delay = "0";
-    }
-    if (!isset($stddev)) {
-        $stddev = "0";
-    }
-    if (!isset($loss)) {
-        $loss = "0";
-    }
-    if (strtolower($status) == "none") {
-        $status = 1;
-    }
-    if (strtolower($status) == "force_down") {
-        $status = 0;
-    }
-    if (strtolower($status) == "down") {
-        $status = 0;
-    }
-    if (!isset($status)) {
-        $status = "Unavailable";
-    }
-    if (!isset($interface)) {
-        $interface = "Unassigned";
-    }
-    if (!isset($gwdescr)) {
-        $gwdescr = "Unassigned";
-    }
-    if (isset($gateway['monitor_disable'])) {
-        $monitor = "Unmonitored";
-    }
-
+    $fields[] = 'status=' . lp_string(gateway_status($state['status'] ?? null), 'Unavailable');
     printf(
-        "gateways,host=%s,interface=%s,gateway_name=%s monitor=\"%s\",source=\"%s\",gwdescr=\"%s\",delay=%s,stddev=%s,loss=%s,status=\"%s\"\n",
-        $host,
-        $interface,
-        $name, //name is required as it is possible to have 2 gateways on 1 interface.  i.e. WAN_DHCP and WAN_DHCP6
-        $monitor,
-        $source,
-        $gwdescr,
-        floatval($delay),
-        floatval($stddev),
-        floatval($loss),
-        $status
+        "gateways,interface=%s,gateway_name=%s %s\n",
+        lp_tag($gateway['interface'] ?? '', 'Unassigned'),
+        lp_tag($name, 'Unassigned'),
+        implode(',', $fields)
     );
-};
-?>
+}

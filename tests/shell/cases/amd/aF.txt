@@ -1,0 +1,5 @@
+dev.amdtemp.0.core0.sensor0: IK
+dev.amdtemp.0.ccd0: IK
+dev.pchtherm.0.temperature: IK
+hw.acpi.thermal.tz0.temperature: IK
+kern.hostname: A

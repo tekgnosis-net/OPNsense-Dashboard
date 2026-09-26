@@ -1,0 +1,2 @@
+interface,name=igb1,ip4_address=192.168.1.1,ip4_subnet=192.168.1.0/24,ip6_address=2001:db8:1:10::1,ip6_subnet=2001:db8:1:10::/64,mac_address=00:0d:b9:aa:bb:02,friendlyname=My\ LAN\,\ main\=1,source=pfconfig status=1
+gateways,interface=wan,gateway_name=GW_ESC monitor="192.0.2.1",source="198.51.100.1",gwdescr="Fibre \"backup\" C:\\link",delay=5,stddev=1,loss=0,status="1"

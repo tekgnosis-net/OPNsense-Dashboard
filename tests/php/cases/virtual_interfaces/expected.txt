@@ -1,0 +1,4 @@
+interface,name=igb1,ip4_address=192.168.1.1,ip4_subnet=192.168.1.0/24,ip6_address=Unassigned,ip6_subnet=Unassigned,mac_address=00:0d:b9:aa:bb:02,friendlyname=LAN,source=pfconfig status=1
+interface,name=vlan0.10,ip4_address=10.0.10.1,ip4_subnet=10.0.10.0/24,ip6_address=Unassigned,ip6_subnet=Unassigned,mac_address=00:0d:b9:aa:bb:02,friendlyname=GUEST,source=pfconfig status=1
+interface,name=wg0,ip4_address=10.8.0.1,ip4_subnet=10.8.0.0/24,ip6_address=Unassigned,ip6_subnet=Unassigned,mac_address=00:00:00:00:00:00,friendlyname=VPN,source=pfconfig status=1
+interface,name=pppoe0,ip4_address=Unassigned,ip4_subnet=Unassigned,ip6_address=2001:db8:0:1::1a2b,ip6_subnet=2001:db8:0:1::1a2b/128,mac_address=00:00:00:00:00:00,friendlyname=WAN,source=pfconfig status=1

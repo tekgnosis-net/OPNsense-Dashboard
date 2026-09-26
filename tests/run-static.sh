@@ -5,8 +5,8 @@ cd "$(dirname "$0")/.." || exit 1
 status=0
 for check in tests/static/check_*; do
     case "$check" in
-        *.py) runner=python3 ;;
-        *.sh) runner=sh ;;
+        *.py) runner='python3' ;;
+        *.sh) runner='sh' ;;
         *) continue ;;
     esac
     echo "== $check"

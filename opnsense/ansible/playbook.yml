@@ -1,81 +1,91 @@
 ---
-- name: Configure Opnsense for Grafana
-  hosts: all
-  become: true
+# Installs the OPNsense-Dashboard Telegraf collectors on OPNsense 26.7 from
+# this checkout and removes files and sudoers lines left by earlier versions.
+# GUI settings (Run as Root, inputs, Influx output, remote syslog) are
+# described in docs/opnsense.md and are not changed here.
+- name: Install OPNsense-Dashboard collectors
+  hosts: opnsense
+  gather_facts: false
+  vars:
+    repo_root: "{{ playbook_dir }}/../.."
+    sudoers_file: /usr/local/etc/sudoers
+    telegraf_confdir: /usr/local/etc/telegraf.d
 
   tasks:
-  - name: Add telegraf to sudoers
-    lineinfile:
-      path: /usr/local/etc/sudoers
-      state: present
-      regexp: '^telegraf\s+ALL='
-      line: 'telegraf ALL=(root) NOPASSWD: /usr/local/bin/telegraf_pfifgw.php'
-      validate: '/usr/local/sbin/visudo -cf %s'
+    - name: Check that the os-telegraf plugin is installed
+      ansible.builtin.stat:
+        path: /usr/local/etc/rc.d/telegraf
+      register: telegraf_rc
 
-  - name: Add telegraf cmd alias to sudoers
-    lineinfile:
-      path: /usr/local/etc/sudoers
-      state: present
-      regexp: '^Cmnd_Alias\s+PFIGW'
-      line: 'Cmnd_Alias PFIFGW = /usr/local/bin/telegraf_pfifgw.php'
-      validate: '/usr/local/sbin/visudo -cf %s'
-        #  - name: disable logging for pfifgw script
+    - name: Stop if os-telegraf is missing
+      ansible.builtin.assert:
+        that: telegraf_rc.stat.exists
+        fail_msg: Install os-telegraf (System > Firmware > Plugins) before running this playbook.
 
-  - name: Disable logging for PFIGW
-    lineinfile:
-      path: /usr/local/etc/sudoers
-      state: present
-      regexp: '^Defaults!PFIGW'
-      line: 'Defaults!PFIFGW !log_allowed'
-      validate: '/usr/local/sbin/visudo -cf %s'
+    # Remove in dependency order: Defaults references the alias, the alias
+    # references the script.
+    - name: Remove legacy sudoers Defaults line for the pfifgw script
+      ansible.builtin.lineinfile:
+        path: "{{ sudoers_file }}"
+        regexp: '^Defaults\\?!PFIF?GW\b'
+        state: absent
+        validate: /usr/local/sbin/visudo -cf %s
 
-  - name: Create telegraf directory
-    file:
-      path: /usr/local/etc/telegraf.d
-      state: directory
-      owner: telegraf
-      group: telegraf
-      mode: '0750'
+    - name: Remove legacy sudoers command alias for the pfifgw script
+      ansible.builtin.lineinfile:
+        path: "{{ sudoers_file }}"
+        regexp: '^Cmnd_Alias\s+PFIF?GW\b'
+        state: absent
+        validate: /usr/local/sbin/visudo -cf %s
 
-  - name: Download telegraf config
-    get_url:
-      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/telegraf.d/custom.conf
-      dest: /usr/local/etc/telegraf.d/custom.conf
-      mode: '0644'
+    - name: Remove legacy sudoers rules for the telegraf user
+      ansible.builtin.lineinfile:
+        path: "{{ sudoers_file }}"
+        regexp: '^telegraf\s+ALL\s*='
+        state: absent
+        validate: /usr/local/sbin/visudo -cf %s
 
-  - name: Download telegraf_pfifgw.php
-    get_url:
-      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_pfifgw.php
-      dest: /usr/local/bin/telegraf_pfifgw.php
-      mode: '0755'
+    - name: Remove files from earlier versions
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ telegraf_confdir }}/suricata.conf"
+        - /usr/local/opnsense/service/templates/OPNsense/IDS/custom.yaml
+        - /tmp/eve.json
+      notify: Restart telegraf
 
-  - name: Download telegraf_temperature.sh
-    get_url:
-      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_temperature.sh
-      dest: /usr/local/bin/telegraf_temperature.sh
-      mode: '0755'
+    - name: Create the Telegraf drop-in directory
+      ansible.builtin.file:
+        path: "{{ telegraf_confdir }}"
+        state: directory
+        owner: telegraf
+        group: telegraf
+        mode: "0750"
 
-  - name: Download Suricata.conf
-    get_url:
-      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/config/suricata/suricata.conf
-      dest: /usr/local/etc/telegraf.d/suricata.conf
-      mode: '0644'
+    - name: Install the collector scripts
+      ansible.builtin.copy:
+        src: "{{ repo_root }}/opnsense/bin/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        owner: root
+        group: wheel
+        mode: "0755"
+      loop:
+        - telegraf_pfifgw.php
+        - telegraf_temperature.sh
+      notify: Restart telegraf
 
-  - name: Download suricata custom.yaml
-    get_url:
-      url: https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/config/suricata/custom.yaml
-      dest: /usr/local/opnsense/service/templates/OPNsense/IDS/custom.yaml
-      mode: '0644'
+    - name: Install the exec input configuration
+      ansible.builtin.copy:
+        src: "{{ repo_root }}/opnsense/telegraf.d/custom.conf"
+        dest: "{{ telegraf_confdir }}/custom.conf"
+        owner: root
+        group: wheel
+        mode: "0644"
+      notify: Restart telegraf
 
-  - name: create eve.json
-    file:
-      path: /tmp/eve.json
-      owner: telegraf
-      state: touch
-      group: telegraf
-      mode: '0640'
-
-  - name: Restart Telegraf service
-    service:
-      name: telegraf
-      state: restarted
+  handlers:
+    - name: Restart telegraf
+      ansible.builtin.service:
+        name: telegraf
+        state: restarted

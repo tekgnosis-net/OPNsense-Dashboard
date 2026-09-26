@@ -22,36 +22,38 @@ There is no build step. `README.md` lists the monitored panels; `docs/` holds th
 ## Validating changes
 
 ```sh
-sh tests/run-static.sh    # runs every tests/static/check_* (currently: upstream refs, repo metadata)
+python3 -m venv .venv && .venv/bin/pip install -r tests/requirements-dev.txt   # once, for check_lint.sh
+sh tests/run-static.sh    # every tests/static/check_*: lint, upstream refs, repo metadata, router files, content pack
+sh tests/run-unit.sh      # PHP plugin vs stubs of OPNsense 26.7.4 functions; temperature script vs a fake sysctl
 ```
 
-`tests/run-unit.sh` and `tests/e2e/run.sh` arrive in later phases of v2. On the router (from `docs/troubleshooting.md`):
+`tests/e2e/run.sh` arrives in a later phase of v2. On the router, **as root** (testing as the `telegraf` user hides root-only failures):
 
 ```sh
-sudo /usr/local/bin/telegraf_pfifgw.php       # prints Influx line protocol
+/usr/local/bin/telegraf_pfifgw.php            # prints Influx line protocol
 sh /usr/local/bin/telegraf_temperature.sh
-sudo su -m telegraf -c 'telegraf --test --config /usr/local/etc/telegraf.conf --config-directory /usr/local/etc/telegraf.d'
+telegraf --test --config /usr/local/etc/telegraf.conf --config-directory /usr/local/etc/telegraf.d
 ```
 
 To run the monitoring stack, use `docker compose up -d`. It serves Grafana on :3000, InfluxDB on :8086, Graylog on :9000, and syslog on UDP :1514.
 
-To provision the router, run `ansible-playbook -i inventory.ini -u root -k playbook.yml` from `opnsense/ansible/`.
+To provision the router, run `ansible-playbook -i inventory.ini -k playbook.yml` from `opnsense/ansible/`. It copies files from the checkout and removes the old sudoers lines and Suricata files.
 
 ## Architecture: three pipelines
 
 ### Metrics (Telegraf → InfluxDB v2 → Flux panels)
 
-The OPNsense `os-telegraf` plugin runs with the Network and PF inputs enabled in its GUI. `opnsense/telegraf.d/custom.conf` adds an `inputs.exec` that runs both scripts in `opnsense/bin/` with `data_format = "influx"`. Grafana panels read the results through `${dataSource}`.
+The OPNsense `os-telegraf` plugin runs **as root** ("Run as Root"; no sudo anywhere) with the Network and PF inputs enabled in its GUI. `opnsense/telegraf.d/custom.conf` adds an `inputs.exec` (timeout 10s) that runs both scripts in `opnsense/bin/` with `data_format = "influx"`. Telegraf adds the `host` tag; the scripts must not print one. Grafana panels read the results through `${dataSource}`.
 
-- `opnsense/bin/telegraf_pfifgw.php` emits the `interface` and `gateways` measurements. It calls OPNsense's internal PHP APIs (`config.inc`, `interfaces.inc`, `plugins.inc.d/dpinger.inc`, `\OPNsense\Routing\Gateways`), so OPNsense upgrades can break it.
-- `telegraf_temperature.sh` emits `temperature` (tag `sensor`, field `degrees`) from `sysctl`.
+- `opnsense/bin/telegraf_pfifgw.php` emits the `interface` and `gateways` measurements. It uses only `get_configured_interface_with_descr`, `get_real_interface`, `legacy_interfaces_details` (called once), `interfaces_primary_address[6]`, `dpinger_status` and `\OPNsense\Routing\Gateways::gatewaysIndexedByName` (OPNsense core 26.7.4). `tests/php/stubs/` mirrors those signatures; update them from core source when targeting a new release.
+- `telegraf_temperature.sh` emits `temperature` (tag `sensor`, field `degrees`), discovering Kelvin-typed sysctls the way OPNsense core does.
 - The dashboard's other measurements come from built-in Telegraf inputs: `system`, `cpu`, `mem`, `disk`, `processes`, `pf`, `net`.
 
 ### Firewall logs (syslog → Graylog → Elasticsearch → Lucene panels)
 
 OPNsense sends syslog to Graylog's Syslog UDP input on port 1514. The content pack `graylog/OPNsense-pack.json` provides:
 
-1. **Extractors.** Six REGEX extractors (IPv4/IPv6 × TCP/UDP/ICMP) match RFC5424 `filterlog` lines. Each has a CSV converter whose `column_header` defines the field names (`interface`, `action`, `src-ip`, `dst-port`, `protocol-name`, …).
+1. **Extractors.** Six REGEX extractors (IPv4/IPv6 × TCP/UDP/ICMP) match RFC5424 `filterlog` lines. Each has a CSV converter whose `column_header` defines the field names (`interface`, `action`, `src-ip`, `dst-port`, `protocol-name`, …). The headers follow filterlog 0.9 exactly; `tests/lib/filterlog.py` is the reference layout and `check_content_pack.py` enforces it. ICMPv6 is logged as `ipv6-icmp` (FreeBSD protocol name).
 2. **Stream.** Stream `OPNsense / filterlog` takes messages where `application_name` CONTAINS `filterlog`.
 3. **GeoIP.** The `GeoIP` pipeline rule adds `src-ip-geo-country` using a MaxMind lookup table.
 4. **Storage.** Messages go to an index set with prefix `opnsense_filterlog`.
@@ -59,13 +61,13 @@ OPNsense sends syslog to Graylog's Syslog UDP input on port 1514. The content pa
 
 ### Suricata (optional, separate dashboard)
 
-`config/suricata/` holds the pre-26.1 approach (a `custom.yaml` IDS template and a `suricata.conf` tail input) feeding the `suricata` measurement, which `grafana/dashboards/opnsense-suricata.json` displays.
+os-telegraf's built-in "Intrusion Detection Alerts" input tails `/var/log/suricata/eve.json` into the `suricata` measurement (needs Run as Root), which `grafana/dashboards/opnsense-suricata.json` displays. OPNsense 26.1 removed the `custom.yaml` hook older versions used.
 
 ## Cross-file contracts (change both sides together)
 
 A mismatch on any of these produces empty panels, not errors:
 
-- **Plugin output ↔ Flux queries.** Measurement, tag and field names printed by the plugins must match the dashboard's Flux filters (`_measurement == "gateways"`, tags `gateway_name`, `friendlyname`, `ip4_address`, `sensor`, …).
+- **Plugin output ↔ Flux queries.** Measurement, tag and field names **and types** printed by the plugins must match the dashboard's Flux filters (`_measurement == "gateways"`, tags `gateway_name`, `friendlyname`, `ip4_address`, `sensor`, …; gateway `status` is a string). Update `tests/php/cases/*/expected.txt` in the same commit as any output change.
 - **Graylog CSV headers ↔ Lucene queries.** The Graylog CSV `column_header` must match the field names in the dashboard's Lucene queries. These fields are hyphenated (`src-ip`, `dst-port`, `protocol-name`).
 - **Datasource and bucket portability.** Panels reference `${dataSource}` or `${ESdataSource}`, and Flux queries use `v.defaultBucket`. Keep it that way when re-exporting from Grafana.
 - **No upstream download URLs.** `tests/static/check_upstream_refs.sh` fails on any raw-download URL or hosted image belonging to the upstream authors. Downloads point at this repository.

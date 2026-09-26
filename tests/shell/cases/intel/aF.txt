@@ -1,0 +1,10 @@
+kern.ostype: A
+hw.ncpu: I
+dev.cpu.0.temperature: IK
+dev.cpu.0.coretemp.tjmax: IK
+dev.cpu.0.coretemp.delta: I
+dev.cpu.1.temperature: IK
+dev.cpu.1.coretemp.tjmax: IK
+hw.acpi.thermal.tz0.temperature: IK
+hw.acpi.thermal.tz0._PSV: IK
+hw.acpi.thermal.tz0._CRT: IK

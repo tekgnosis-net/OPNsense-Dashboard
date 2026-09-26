@@ -1,0 +1,7 @@
+dev.cpu.0.temperature: 45.0C
+dev.cpu.1.temperature: 47.0C
+dev.cpu.0.coretemp.tjmax: 100.0C
+dev.cpu.1.coretemp.tjmax: 100.0C
+hw.acpi.thermal.tz0.temperature: 27.9C
+hw.acpi.thermal.tz0._PSV: -1
+hw.acpi.thermal.tz0._CRT: 105.0C

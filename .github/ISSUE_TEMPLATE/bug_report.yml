@@ -5,7 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please check [troubleshooting](https://github.com/tekgnosis-net/OPNsense-Dashboard/blob/master/docs/troubleshooting.md) first.
+        Please check
+        [troubleshooting](https://github.com/tekgnosis-net/OPNsense-Dashboard/blob/master/docs/troubleshooting.md)
+        first.
         Remove secrets (tokens, passwords) from anything you paste.
   - type: input
     id: opnsense-version

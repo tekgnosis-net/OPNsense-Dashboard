@@ -1,0 +1,5 @@
+interface,name=igb1,ip4_address=192.168.1.1,ip4_subnet=192.168.1.0/24,ip6_address=2001:db8:1:10::1,ip6_subnet=2001:db8:1:10::/64,mac_address=00:0d:b9:aa:bb:02,friendlyname=LAN,source=pfconfig status=1
+interface,name=igb2,ip4_address=10.0.50.1,ip4_subnet=10.0.50.0/24,ip6_address=Unassigned,ip6_subnet=Unassigned,mac_address=00:0d:b9:aa:bb:03,friendlyname=IOT,source=pfconfig status=0
+interface,name=igb0,ip4_address=203.0.113.45,ip4_subnet=203.0.113.0/24,ip6_address=2001:db8:0:1::1a2b,ip6_subnet=2001:db8:0:1::1a2b/128,mac_address=00:0d:b9:aa:bb:01,friendlyname=WAN,source=pfconfig status=1
+gateways,interface=wan,gateway_name=WAN_DHCP monitor="1.1.1.1",source="203.0.113.1",gwdescr="Interface WAN_DHCP Gateway",delay=12.3,stddev=0.4,loss=0,status="1"
+gateways,interface=wan,gateway_name=WAN_DHCP6 monitor="Unmonitored",source="fe80::1%igb0",gwdescr="Interface WAN_DHCP6 Gateway",status="1"

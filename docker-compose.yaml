@@ -10,7 +10,7 @@ services:
       # Change this to your time zone, valid time zones can be found here: https://www.joda.org/joda-time/timezones.html
       - TZ=CST6CDT
     networks:
-      - graylog  
+      - graylog
   elasticsearch:
     container_name: elasticsearch
     image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
@@ -32,14 +32,16 @@ services:
     volumes:
       - graylog_data:/usr/share/graylog/data
     environment:
-      # Change these to your time zone, valid time zones can be found here: https://www.joda.org/joda-time/timezones.html
+      # Change these to your time zone, valid time zones can be found here:
+      # https://www.joda.org/joda-time/timezones.html
       - TZ=CST6CDT
       - ROOT_TIMEZONE=CST6CDT
       - GRAYLOG_TIMEZONE=CST6CDT
-      # CHANGE ME (must be at least 16 characters)! This is not your password, this is meant for salting the password below.
+      # CHANGE ME (must be at least 16 characters)! This is not your password,
+      # this is meant for salting the password below.
       - GRAYLOG_PASSWORD_SECRET=ZDcwMzQ3NTE4ZTIwM
       # Username is "admin"
-      # Password is "admin", change this to your own hashed password. 'echo -n "password" | sha256sum' 
+      # Password is "admin", change this to your own hashed password. 'echo -n "password" | sha256sum'
       - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
       - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
     networks:
@@ -53,7 +55,7 @@ services:
       # Syslog UDP
       - 1514:1514/udp
       # Syslog TCP Optional
-      #- 1514:1514
+      # - 1514:1514
     restart: "unless-stopped"
   influxdb:
     container_name: influxdb

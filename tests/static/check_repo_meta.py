@@ -28,6 +28,9 @@ need(".github/ISSUE_TEMPLATE/config.yml", "blank_issues_enabled: false")
 need(".github/pull_request_template.md", "tests/run-static.sh", "tests/run-unit.sh")
 need("CLAUDE.md", "tests/run-static.sh", "opnsense/bin/telegraf_pfifgw.php")
 
+need("docs/opnsense.md", "Run as Root", "RFC5424", "Intrusion Detection Alerts",
+     "telegraf --test", "opnsense/ansible", "Thermal Sensors")
+
 for error in errors:
     print(f"FAIL: {error}", file=sys.stderr)
 print("ok: repository metadata present" if not errors else "")

@@ -1,0 +1,2 @@
+kern.ostype: A
+hw.ncpu: I

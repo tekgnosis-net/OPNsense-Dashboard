@@ -1,0 +1,1 @@
+interface,name=opt9,ip4_address=Unassigned,ip4_subnet=Unassigned,ip6_address=Unassigned,ip6_subnet=Unassigned,mac_address=Unavailable,friendlyname=LAB,source=pfconfig status=2

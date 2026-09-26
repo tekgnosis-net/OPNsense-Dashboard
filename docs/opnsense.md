@@ -1,187 +1,144 @@
 # OPNsense (router) setup
 
-## Configuring Telegraf
+Tested with OPNsense 26.7.x. Older releases are untested.
 
+This page sets up the firewall side:
+- Telegraf sends metrics to InfluxDB.
+- The firewall log goes to Graylog over syslog.
 
-### For previous users
+Set up the monitoring host first ([stack.md](stack.md)). You will need its
+address, the InfluxDB organization and bucket, a Telegraf write token, and
+the syslog port.
 
-If you previously used the pkg install version of telegraf, follow these instructions.
+## 1. Install the Telegraf plugin
 
-Run `sudo pkg remove telegraf` to remove telegraf.
+System > Firmware > Plugins: install **os-telegraf**.
 
-Delete the line that starts with telegraf in /usr/local/etc/sudoers.
+## 2. Configure Telegraf
 
-Once those are done you can continue with the new configuration.
+Services > Telegraf.
 
+**General**
+- Enable Telegraf Agent: checked
+- **Run as Root: checked.**
+  - The collectors read pf statistics, dpinger gateway status and Suricata's
+    `eve.json`, and only root can read those.
+  - Without it, the `pf` input fails, the dashboard's Host list stays empty,
+    and every panel is blank.
+- Leave Hostname empty. The firewall panels match InfluxDB's `host` tag
+  against the hostname in the syslog messages, and both must be the
+  firewall's own hostname.
 
-### Install the plugin and configure options
-Install the Telegraf plugin on OPNsense, to do so, navigate to System -> Firmware -> Plugins -> Search for telegraf, and click the plus icon to install.
+**Input**
+- CPU, Disk, Memory, Processes, System: checked (they are on by default)
+- Network: checked
+- PF: checked
+- Intrusion Detection Alerts: checked if you use Intrusion Detection and want
+  the Suricata dashboard
 
-Navigate to Services -> Telegraf -> Input
+**Output**
+- Enable Influx v2 Output: checked
+- Influx v2 URL: `http://<monitoring-host>:8086`, the host running the stack
+  (not `localhost`)
+- Influx v2 Token: the Telegraf write token (see stack.md, "Create the Telegraf
+  token")
+- Influx v2 Organization and Influx v2 Bucket: your `INFLUXDB_ORG` and
+  `INFLUXDB_BUCKET`
+- Leave "Enable Influx Output" (the v1 output) unchecked.
 
-Enable Network and PF Inputs.
+Click Save and Apply.
 
-Then click Save.
+## 3. Install the collectors
 
-Now navigate to Services -> Telegraf -> Output
+The collectors are two scripts and one Telegraf drop-in file.
 
-Enable Influx v2 Output and fill in the following:
+### With Ansible (recommended)
 
-Influx v2 Token: Your InfluxDB Token
+See [opnsense/ansible](../opnsense/ansible/README.md). The playbook copies
+the files from your checkout and removes leftovers from earlier versions.
 
-Influx v2 URL: Your InfluxDB URL, this will be the IP address or hostname of your system that is running InfluxDB. E.g http://192.168.1.10:8086
+### By hand
 
-Influx v2 Organization: Your InfluxDB Organization
+As root on the firewall:
 
-Influx v2 Bucket: Your InfluxDB Bucket
-
-Then click Save.
-
-
-### Alternative OPNSense Configuration via Ansible
-
-You can use Ansible to automate a few sections. Install [Ansible](https://docs.ansible.com/ansible/latest/installation_guide/installation_distros.html) on your linux server and use the files at [opnsense/ansible](../opnsense/ansible/). If you use this method you can skip these sections: Add telegraf to sudoers, Telegraf Plugins, and Configuration for the Suricata dashboard.
-
-### Add telegraf to sudoers
-
-After that, we need to add telegraf to sudoers and use nopasswd to restrict telegraf to only what it needs to run as root.
-
-```
-printf 'telegraf ALL=(root) NOPASSWD: /usr/local/bin/telegraf_pfifgw.php\n' | sudo tee -a /usr/local/etc/sudoers > /dev/null
-```
-
-You may also wish to disable sudo logging for telegraf_pfifgw.php, otherwise you'll see many sudo logs from telegraf running the script every 10 seconds.
-
-```
-printf 'Cmnd_Alias PFIFGW = /usr/local/bin/telegraf_pfifgw.php\n' | sudo tee -a /usr/local/etc/sudoers > /dev/null
-printf 'Defaults!PFIFGW !log_allowed\n' | sudo tee -a /usr/local/etc/sudoers > /dev/null
-```
-
-Add the  [custom.conf](../opnsense/telegraf.d/custom.conf) telegraf config to /usr/local/etc/telegraf.d
-
-```
-sudo mkdir /usr/local/etc/telegraf.d
-sudo chown telegraf:telegraf /usr/local/etc/telegraf.d
-sudo chmod 750 /usr/local/etc/telegraf.d
-sudo curl https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/telegraf.d/custom.conf -o /usr/local/etc/telegraf.d/custom.conf
-```
-
-### Telegraf Plugins
-
-**Plugins must be copied to your OPNsense system**
-
-Place [telegraf_pfifgw.php](https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_pfifgw.php) and [telegraf_temperature.sh](https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_temperature.sh) in /usr/local/bin and chmod them to 755.
-
-```
-curl "https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_pfifgw.php" -o /usr/local/bin/telegraf_pfifgw.php
-curl "https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_temperature.sh" -o /usr/local/bin/telegraf_temperature.sh
-chmod 755 /usr/local/bin/telegraf_temperature.sh /usr/local/bin/telegraf_pfifgw.php
+```sh
+base=https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master
+fetch -o /usr/local/bin/telegraf_pfifgw.php "$base/opnsense/bin/telegraf_pfifgw.php"
+fetch -o /usr/local/bin/telegraf_temperature.sh "$base/opnsense/bin/telegraf_temperature.sh"
+chmod 755 /usr/local/bin/telegraf_pfifgw.php /usr/local/bin/telegraf_temperature.sh
+mkdir -p /usr/local/etc/telegraf.d
+fetch -o /usr/local/etc/telegraf.d/custom.conf "$base/opnsense/telegraf.d/custom.conf"
+configctl telegraf restart
 ```
 
-Test these out before starting the telegraf service by executing them
+`fetch` is FreeBSD's built-in downloader; `curl -o` works too.
 
-`sudo telegraf_pfifgw.php`
+### Upgrading from bsmithio/OPNsense-Dashboard
 
-`telegraf_temperature.sh`
+The old setup edited sudoers and installed Suricata files that are no longer
+used. The Ansible playbook removes them. By hand:
 
-The temperature plugin may not work on every system, if you receive `sysctl: unknown oid 'hw.acpi.thermal'` comment out or remove that line from the plugin.
+- Remove `/usr/local/etc/telegraf.d/suricata.conf`,
+  `/usr/local/opnsense/service/templates/OPNsense/IDS/custom.yaml` and
+  `/tmp/eve.json`.
+- Run `visudo` and delete these lines, in this order: `Defaults!PFIFGW …`,
+  `Cmnd_Alias PFIFGW …`, and any `telegraf ALL=…` line.
+  - Use `visudo` rather than `printf`/`tee`: the root shell (tcsh) expands `!`
+    even inside quotes.
 
-After this is done, navigate to Services -> Telegraf -> General -> Enable Telegraf Agent.
+## 4. Temperature sensors
 
-Lastly, check if Telegraf is running
+System > Settings > Miscellaneous > Thermal Sensors > Hardware:
+- choose "Intel Core* CPU on-die thermal sensor (coretemp)" or
+  "AMD K8, K10 and K11 CPU on-die thermal sensor (amdtemp)";
+- then reboot.
 
-`sudo service telegraf status`
+ACPI thermal zones work without this setting. Systems without sensors just
+report nothing.
 
-## Configuring Graylog
+## 5. Send the firewall log to Graylog
 
-### Add Graylog server as syslog target on OPNsense
-
-Once that is all done, login to your OPNsense router and navigate to System -> Settings -> Logging / targets. Add a new target with the following options:
-
+System > Settings > Logging > Remote, then add a destination:
+- Enabled: checked
 - Transport: UDP(4)
 - Applications: filter (filterlog)
-- Hostname: the Docker host running Graylog
-- Port: 1514
-- RFC5424: checked
+- Levels: include `info`; filterlog logs at that level
+- Hostname: the monitoring host
+- Port: `SYSLOG_PORT` from `.env` (default 1514)
+- **RFC5424: checked.** This is required: the Graylog extractors only match
+  RFC5424 messages.
+- Description: Graylog
 
-Add a description if you'd like, then click save.
+## 6. Suricata (optional)
 
-## Configuration for the Suricata dashboard #Optional
+1. Enable Intrusion Detection as usual: Services > Intrusion Detection >
+   Administration.
+2. Tick **Intrusion Detection Alerts** on the Telegraf Input tab. Telegraf
+   then reads `/var/log/suricata/eve.json`.
 
-This section assumes you have already configured Suricata.
+No extra files are needed. OPNsense 26.1 removed the `custom.yaml` hook that
+earlier versions of this project used.
 
-### Add the necessary files
+## 7. Check that it works
 
-Add [suricata.conf](../config/suricata/suricata.conf) to /usr/local/etc/telegraf.d
+Run these **as root**. Testing as the `telegraf` user hides the root-only
+failures that "Run as Root" fixes.
 
-```
-sudo curl 'https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/config/suricata/suricata.conf' -o /usr/local/etc/telegraf.d/suricata.conf
-```
-
-Add [custom.yaml](../config/suricata/custom.yaml) to /usr/local/opnsense/service/templates/OPNsense/IDS
-
-```
-sudo curl 'https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/config/suricata/custom.yaml' -o /usr/local/opnsense/service/templates/OPNsense/IDS/custom.yaml
-```
-
-Create the log file and give telegraf permissions to read it
-
-```
-sudo touch /tmp/eve.json
-sudo chown :telegraf /tmp/eve.json
-sudo chmod 640 /tmp/eve.json
+```sh
+/usr/local/bin/telegraf_pfifgw.php            # interface and gateways lines
+sh /usr/local/bin/telegraf_temperature.sh     # temperature lines (empty without sensors)
+telegraf --test --config /usr/local/etc/telegraf.conf --config-directory /usr/local/etc/telegraf.d
+pluginctl -r return_gateways_status           # dpinger's view of gateway delay and loss
 ```
 
-### Restart Suricata and Telegraf
+## What the collectors send
 
-Restart Suricata from Services -> Intrusion Detection -> Administration
+| Measurement | Tags | Fields | Source |
+|---|---|---|---|
+| `interface` | `host`, `name` (device), `ip4_address`, `ip4_subnet`, `ip6_address`, `ip6_subnet`, `mac_address`, `friendlyname` (OPNsense description), `source` | `status`: 1 up, 0 down, 2 unknown | `telegraf_pfifgw.php` |
+| `gateways` | `host`, `interface`, `gateway_name` | `monitor`, `source`, `gwdescr`, `status` ("1" online, "0" offline, "2" degraded, "Unavailable"); `delay` and `stddev` in ms and `loss` in %, left out until dpinger has data | `telegraf_pfifgw.php` |
+| `temperature` | `host`, `sensor` (`cpu0`, `tz0`, `amdtemp0core0sensor0`, …) | `degrees` (°C) | `telegraf_temperature.sh` |
+| `system`, `cpu`, `mem`, `disk`, `processes`, `pf`, `net` | Telegraf defaults | Telegraf defaults | os-telegraf inputs |
+| `suricata` | `host`, `event_type`, `src_ip`, `src_port`, `dest_ip`, `dest_port` | `alert_signature`, `alert_category`, `alert_action`, `alert_signature_id`, `proto`, … | Intrusion Detection Alerts input |
 
-Uncheck Enabled and click Apply.
-
-Check Enabled and click Apply.
-
-Restart telegraf by running
-
-`sudo service telegraf restart`
-
-
-## Plugin reference
-
-### Installing the Plugins
-Place these plugins in "/usr/local/bin". The easiest way of doing this would be to SSH into your router, navigate to "/usr/local/bin" and use curl to download the files, like so:
-
-
-`curl https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_pfifgw.php -o telegraf_pfifgw.php`
-
-`curl https://raw.githubusercontent.com/tekgnosis-net/OPNsense-Dashboard/master/opnsense/bin/telegraf_temperature.sh -o telegraf_temperature.sh`
-
-Make sure to set the permissions to "755"
-
-### telegraf_pfifgw.php
-
-This single script collects information for Interfaces and gateways.
-
-**Interfaces:**
-* Interface name
-* IP4 address
-* IP4 subnet
-* IP6 address
-* IP6 subnet
-* MAC address
-* Friendly name
-* Status (Online/Offline/Etc.)
-
-**Gateways:**
-* Interface name
-* Monitor IP
-* Source IP
-* GW Description
-* Delay
-* Stddev
-* Loss (%)
-* Status (Online/Offline/etc.)
-
-
-### telegraf_temperature.sh
-
-Provides temperature sensor information.
+Telegraf adds the `host` tag to every measurement.

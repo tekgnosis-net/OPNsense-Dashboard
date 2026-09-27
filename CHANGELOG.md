@@ -6,12 +6,15 @@ upstream repository bsmithio/OPNsense-Dashboard, where they were reported.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-28
+
 ### Dashboards
 - Firewall row: "Top IP Blocked" is replaced by two top-flows tables, blocked
   from the internet (WAN interfaces) and blocked from your networks (every
   other interface). Each row shows source, interface (by its OPNsense name),
-  protocol, destination port, rule number and Kind: a new connection, a late packet of a closed
-  connection, or not TCP. The internet table adds the country.
+  protocol, destination port, rule number and Kind: a new connection, a late
+  packet of a closed connection, or not TCP. The internet table adds the
+  country.
 - "Recent Blocked Events" lists the latest 50 blocked packets.
 - Clicking a source in these tables filters the whole Firewall row to it.
 - Troubleshooting covers an own device showing up as the top blocked source.
@@ -19,6 +22,11 @@ upstream repository bsmithio/OPNsense-Dashboard, where they were reported.
 ### Project
 - Questions and setup help go to GitHub Discussions (Q&A); the Question issue
   form is retired.
+
+### Still planned
+- The 2.0.0 notes' "Planned (2.1)" items are not in this release: CARP/VIP
+  state metrics, dst-ip GeoIP enrichment, a separate "Firewall Events"
+  dashboard, and ping and speed-test panels.
 
 ## [2.0.1] - 2026-09-27
 
@@ -105,6 +113,7 @@ stack (Graylog 5, Elasticsearch 7.10, Grafana 9) is not carried over.
 | 2021-04 | Gateway status collected natively in PHP (VictorRobellini/pfSense-Dashboard) |
 | 2020-04 | pfSense-Dashboard first published by Victor Robellini |
 
-[Unreleased]: https://github.com/tekgnosis-net/OPNsense-Dashboard/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/tekgnosis-net/OPNsense-Dashboard/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v2.1.0
 [2.0.1]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v2.0.1
 [2.0.0]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v2.0.0

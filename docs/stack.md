@@ -106,6 +106,9 @@ Reading the Firewall row:
   **Blocked from Your Networks** counts blocks on every other interface, which
   means traffic from your own devices. The firewall log records both as
   direction "in", because the packet entered the firewall on that interface.
+- **Interface** shows the OPNsense description (LAN, a VLAN's name), looked
+  up from the interface metrics. When several firewalls are selected and two
+  of them use the same device name, one description is shown.
 - **Kind** says what was blocked:
   - *New connection*: a refused connection attempt (TCP SYN).
   - *Late packet*: part of a connection the firewall had already closed (FIN,

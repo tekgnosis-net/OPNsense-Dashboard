@@ -18,6 +18,13 @@ RENDERED = ("Blocked from the Internet", "Blocked from Your Networks", "Recent B
             "New connection", "Late packet", "Not TCP", INSIDE, "192.168.1.50", "2.125.160.216")
 
 
+def panel_text(page, title):
+    """Everything one panel renders; Grafana puts this test id on the panel's <section>."""
+    panel = page.locator(f'[data-testid^="data-testid Panel header {title}"]')
+    assert panel.count() == 1, f"panel {title!r}: {panel.count()} matches"
+    return panel.inner_text()
+
+
 def load(page, uid, extra=""):
     page.goto(f"{base}/d/{uid}?orgId=1&from=now-30m&to=now&var-Host=fw-a.example.lan{extra}&kiosk",
               wait_until="networkidle", timeout=120000)
@@ -40,6 +47,13 @@ with sync_playwright() as pw:
         if uid == MAIN:
             missing = [t for t in RENDERED if t not in body]
             assert not missing, f"OPNsense dashboard does not render {missing}"
+            # The Interface column shows OPNsense descriptions, not devices.
+            for title, names in (("Blocked from the Internet", {"WAN"}), ("Blocked from Your Networks", {"LAN"}),
+                                 ("Recent Blocked Events", {"WAN", "LAN"})):
+                text = panel_text(page, title)
+                devices = [d for d in ("igb0", "igb1") if d in text]
+                absent = [n for n in names if n not in text]
+                assert not devices and not absent, f"{title}: shows devices {devices}, lacks names {absent}"
 
     # Clicking a source sets $src_ip; every firewall panel must narrow to it.
     page.set_viewport_size({"width": 1600, "height": SHOTS[0][2]})

@@ -9,8 +9,8 @@ upstream repository bsmithio/OPNsense-Dashboard, where they were reported.
 ### Dashboards
 - Firewall row: "Top IP Blocked" is replaced by two top-flows tables, blocked
   from the internet (WAN interfaces) and blocked from your networks (every
-  other interface). Each row shows source, interface, protocol, destination
-  port, rule number and Kind: a new connection, a late packet of a closed
+  other interface). Each row shows source, interface (by its OPNsense name),
+  protocol, destination port, rule number and Kind: a new connection, a late packet of a closed
   connection, or not TCP. The internet table adds the country.
 - "Recent Blocked Events" lists the latest 50 blocked packets.
 - Clicking a source in these tables filters the whole Firewall row to it.

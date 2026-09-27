@@ -209,7 +209,8 @@ def run(dash, name):
                 continue
             if status != 200 or error or rows(frames) == 0:
                 failures.append(f"{label}: HTTP {status}, error={error!r}, rows={rows(frames)}")
-            results[panel["id"]] = frames
+            results.setdefault(panel["id"], frames)  # the panel's first target
+            results[(panel["id"], q["refId"])] = frames
     return results
 
 
@@ -255,6 +256,10 @@ if MODE == "full" and not failures:
     if countries != {"2.125.160.216": "GB", "89.160.20.112": "SE", "216.160.83.56": "US",
                      "2001:218::1": "JP", "2001:220::1": "KR"}:
         failures.append(f"panel 112: countries {countries}")
+    for pid in (112, 113, 114):  # the Interface column's lookup (device -> OPNsense description)
+        lookup = {r.get("name"): r.get("friendlyname") for r in records(found.get((pid, "B"), []))}
+        if lookup.get("igb0") != "WAN" or lookup.get("igb1") != "LAN":
+            failures.append(f"panel {pid}: interface lookup {lookup}, want igb0 -> WAN, igb1 -> LAN")
     events = records(found[114])
     sources = set(expected["flows"]["internet"]) | set(expected["flows"]["networks"])
     stamps = [e.get("timestamp") for e in events]

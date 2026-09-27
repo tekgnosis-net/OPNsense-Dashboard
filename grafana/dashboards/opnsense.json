@@ -1496,8 +1496,8 @@
     },
     {
       "datasource": {
-        "type": "grafana-opensearch-datasource",
-        "uid": "${ESdataSource}"
+        "type": "datasource",
+        "uid": "-- Mixed --"
       },
       "description": "Blocked packets that arrived on WAN interfaces (described \"WAN...\" in OPNsense), grouped by source, country, interface, protocol, destination port and firewall rule number. Kind: New connection = a connection attempt (TCP SYN) that was refused; Late packet = part of a connection the firewall no longer tracks (FIN, RST or ACK after the state ended), usually harmless; Not TCP = UDP or ICMP. Click a source to filter the whole Firewall row to it.",
       "fieldConfig": {
@@ -1797,10 +1797,38 @@
           "queryType": "lucene",
           "refId": "A",
           "timeField": "timestamp"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${dataSource}"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"interface\" and r._field == \"status\" and\n    r.host =~ /^${Host:regex}$/)\n  |> last()\n  |> group()\n  |> keep(columns: [\"name\", \"friendlyname\"])\n  |> unique(column: \"name\")",
+          "refId": "B"
         }
       ],
       "title": "Blocked from the Internet: Top Flows",
       "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "applyTo": {
+              "id": "byName",
+              "options": "interface"
+            },
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "name",
+                "handlerKey": "mappings.value"
+              },
+              {
+                "fieldName": "friendlyname",
+                "handlerKey": "mappings.text"
+              }
+            ]
+          }
+        },
         {
           "id": "sortBy",
           "options": {
@@ -1851,8 +1879,8 @@
     },
     {
       "datasource": {
-        "type": "grafana-opensearch-datasource",
-        "uid": "${ESdataSource}"
+        "type": "datasource",
+        "uid": "-- Mixed --"
       },
       "description": "Blocked packets from your own devices: they arrived on a LAN, VLAN or VPN interface (the firewall log calls this direction \"in\" because the packet entered there; the destination is usually the internet). New connections here mean a device is being refused, for example by a missing pass rule or because it uses an address from another network. Kind: New connection = a connection attempt (TCP SYN) that was refused; Late packet = part of a connection the firewall no longer tracks (FIN, RST or ACK after the state ended), usually harmless; Not TCP = UDP or ICMP. Click a source to filter the whole Firewall row to it.",
       "fieldConfig": {
@@ -2128,10 +2156,38 @@
           "queryType": "lucene",
           "refId": "A",
           "timeField": "timestamp"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${dataSource}"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"interface\" and r._field == \"status\" and\n    r.host =~ /^${Host:regex}$/)\n  |> last()\n  |> group()\n  |> keep(columns: [\"name\", \"friendlyname\"])\n  |> unique(column: \"name\")",
+          "refId": "B"
         }
       ],
       "title": "Blocked from Your Networks: Top Flows",
       "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "applyTo": {
+              "id": "byName",
+              "options": "interface"
+            },
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "name",
+                "handlerKey": "mappings.value"
+              },
+              {
+                "fieldName": "friendlyname",
+                "handlerKey": "mappings.text"
+              }
+            ]
+          }
+        },
         {
           "id": "sortBy",
           "options": {
@@ -2180,8 +2236,8 @@
     },
     {
       "datasource": {
-        "type": "grafana-opensearch-datasource",
-        "uid": "${ESdataSource}"
+        "type": "datasource",
+        "uid": "-- Mixed --"
       },
       "description": "The latest 50 blocked packets, newest first. Kind as in the flow tables, with the TCP flags in brackets. Click a source to filter the whole Firewall row to it.",
       "fieldConfig": {
@@ -2335,10 +2391,38 @@
           "queryType": "lucene",
           "refId": "A",
           "timeField": "timestamp"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${dataSource}"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"interface\" and r._field == \"status\" and\n    r.host =~ /^${Host:regex}$/)\n  |> last()\n  |> group()\n  |> keep(columns: [\"name\", \"friendlyname\"])\n  |> unique(column: \"name\")",
+          "refId": "B"
         }
       ],
       "title": "Recent Blocked Events on $iface",
       "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "applyTo": {
+              "id": "byName",
+              "options": "interface"
+            },
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "name",
+                "handlerKey": "mappings.value"
+              },
+              {
+                "fieldName": "friendlyname",
+                "handlerKey": "mappings.text"
+              }
+            ]
+          }
+        },
         {
           "id": "filterFieldsByName",
           "options": {

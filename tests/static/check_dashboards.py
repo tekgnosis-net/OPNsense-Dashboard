@@ -200,6 +200,22 @@ if events:
     mapped = json.dumps(events[0]["fieldConfig"])
     need(all(k in mapped for k in KIND) and "^(S[^A]*)$" in mapped,
          "Recent Blocked Events: tcp-flags must map to the same Kind names (new = S without A)")
+# Their Interface column shows the OPNsense description (LAN, VLAN10Users), not the
+# device (igc1): a Flux lookup of the interface measurement becomes value mappings
+# ("Config from query results"), which must run before sortBy/limit/organize.
+for p in [P[pid] for pid in flows] + events:
+    lookups = [t for t in p.get("targets") or []
+               if '_measurement == "interface"' in text(t) and "friendlyname" in text(t)]
+    first = (p.get("transformations") or [{}])[0]
+    opts = first.get("options", {})
+    need(uid(p.get("datasource")) == "-- Mixed --" and len(lookups) == 1,
+         f"panel {p['id']}: needs a Mixed datasource with one Flux lookup of interface descriptions")
+    need(first.get("id") == "configFromData" and bool(lookups)
+         and opts.get("configRefId") == lookups[0].get("refId")
+         and opts.get("applyTo") == {"id": "byName", "options": "interface"}
+         and {(m.get("fieldName"), m.get("handlerKey")) for m in opts.get("mappings", [])}
+         == {("name", "mappings.value"), ("friendlyname", "mappings.text")},
+         f"panel {p['id']}: first transformation must map interface via the lookup (Config from query results)")
 need(not any(p["type"] == "stat" and "src-ip" in json.dumps(p.get("targets")) and "terms" in json.dumps(p.get("targets"))
              for p in walk(main["panels"])), "a stat panel ranking source IPs hides their context")
 

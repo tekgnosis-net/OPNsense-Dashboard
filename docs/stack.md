@@ -97,7 +97,25 @@ Dashboard variables (at the top):
   either rename it in OPNsense, or edit the variable (Dashboard settings >
   Variables > WAN) and save.
 - **iface.** The interfaces the Firewall row counts blocks for.
+- **src_ip, dst_port.** Filters for the Firewall row. Clicking a source in
+  the flow or event tables sets src_ip.
 - **Gateway, Disk, Sensor.** Filters for their panels.
+
+Reading the Firewall row:
+- **Blocked from the Internet** counts blocks on WAN interfaces.
+  **Blocked from Your Networks** counts blocks on every other interface, which
+  means traffic from your own devices. The firewall log records both as
+  direction "in", because the packet entered the firewall on that interface.
+- **Interface** shows the OPNsense description (LAN, a VLAN's name), looked
+  up from the interface metrics. When several firewalls are selected and two
+  of them use the same device name, one description is shown.
+- **Kind** says what was blocked:
+  - *New connection*: a refused connection attempt (TCP SYN).
+  - *Late packet*: part of a connection the firewall had already closed (FIN,
+    RST or ACK). This is usually harmless.
+  - *Not TCP*: UDP or ICMP.
+- Your own device near the top of "Blocked from Your Networks" is covered in
+  [troubleshooting](troubleshooting.md#one-of-my-own-devices-is-the-top-blocked-source).
 
 Dashboards are provisioned from `grafana/dashboards/`. You can edit and save
 them in the UI. A change to the file (for example after a `git pull`)

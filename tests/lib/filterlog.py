@@ -34,7 +34,7 @@ RULE_ID = "fae559338f65e11c53669fc3642c93c2"
 
 
 def fields(ipver, proto, *, iface="igb0", action="block", direction="in",
-           src=None, dst=None, sport=51234, dport=443):
+           src=None, dst=None, sport=51234, dport=443, tcp_flags="S"):
     src = src or ("2.125.160.216" if ipver == "4" else "2001:218::1")
     dst = dst or ("203.0.113.45" if ipver == "4" else "2001:db8:0:1::1a2b")
     head = ["96", "", "", RULE_ID, iface, "match", action, direction, ipver]
@@ -43,7 +43,7 @@ def fields(ipver, proto, *, iface="igb0", action="block", direction="in",
     else:
         ip = ["0x00", "0x00000", "64", proto, str(PROTO_NUMBER[proto]), "40", src, dst]
     if proto == "tcp":
-        tail = [str(sport), str(dport), "0", "S", "1234567890", "", "64240", "", "mss;sackOK;TS;nop;wscale"]
+        tail = [str(sport), str(dport), "0", tcp_flags, "1234567890", "", "64240", "", "mss;sackOK;TS;nop;wscale"]
     elif proto == "udp":
         tail = [str(sport), str(dport), "40"]
     else:

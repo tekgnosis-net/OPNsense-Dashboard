@@ -1289,97 +1289,6 @@
       },
       "fieldConfig": {
         "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 5,
-        "x": 19,
-        "y": 13
-      },
-      "id": 67,
-      "maxDataPoints": 100,
-      "options": {
-        "colorMode": "value",
-        "fieldOptions": {
-          "calcs": [
-            "first"
-          ]
-        },
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "horizontal",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "first"
-          ],
-          "fields": "/^src\\-ip$/",
-          "values": true
-        },
-        "showPercentChange": false,
-        "text": {},
-        "textMode": "value",
-        "wideLayout": true
-      },
-      "pluginVersion": "13.2.2",
-      "targets": [
-        {
-          "bucketAggs": [
-            {
-              "fake": true,
-              "field": "src-ip",
-              "id": "3",
-              "settings": {
-                "min_doc_count": 1,
-                "order": "desc",
-                "orderBy": "_count",
-                "size": "1"
-              },
-              "type": "terms"
-            }
-          ],
-          "datasource": {
-            "type": "grafana-opensearch-datasource",
-            "uid": "${ESdataSource}"
-          },
-          "dsType": "elasticsearch",
-          "metrics": [
-            {
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "query": "action:\"block\" AND interface:$iface AND src-ip:$src_ip AND dst-port:$dst_port AND source:$Host",
-          "refId": "A",
-          "target": "",
-          "timeField": "timestamp",
-          "queryType": "lucene",
-          "luceneQueryType": "Metric"
-        }
-      ],
-      "title": "Top IP Blocked on $iface",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "grafana-opensearch-datasource",
-        "uid": "${ESdataSource}"
-      },
-      "fieldConfig": {
-        "defaults": {
           "color": {
             "fixedColor": "#73BF69",
             "mode": "palette-classic"
@@ -1505,10 +1414,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 11,
         "w": 5,
         "x": 19,
-        "y": 16
+        "y": 13
       },
       "id": 65,
       "maxDataPoints": 1,
@@ -1586,12 +1495,991 @@
       "type": "piechart"
     },
     {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "description": "Blocked packets that arrived on WAN interfaces (described \"WAN...\" in OPNsense), grouped by source, country, interface, protocol, destination port and firewall rule number. Kind: New connection = a connection attempt (TCP SYN) that was refused; Late packet = part of a connection the firewall no longer tracks (FIN, RST or ACK after the state ended), usually harmless; Not TCP = UDP or ICMP. Click a source to filter the whole Firewall row to it.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": false,
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false,
+            "minWidth": 1
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Source|src-ip)$"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show only this source",
+                    "url": "/d/${__dashboard.uid}?orgId=${__org.id}&${__url_time_range}&${Host:queryparam}&${iface:queryparam}&${WAN:queryparam}&${LAN:queryparam}&${dataSource:queryparam}&${ESdataSource:queryparam}&var-src_ip=${__value.raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 160
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Kind|filter)$"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "New connection": {
+                        "color": "orange",
+                        "index": 0
+                      },
+                      "Late packet": {
+                        "color": "text",
+                        "index": 1
+                      },
+                      "Not TCP": {
+                        "color": "text",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Blocks|Count)$"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              },
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Country|src-ip-geo-country)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Interface|interface)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 85
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Protocol|protocol-name)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 85
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Dst port|dst-port)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 75
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Rule|rule-number)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 55
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 112,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Blocks"
+          }
+        ]
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "bucketAggs": [
+            {
+              "field": "src-ip",
+              "id": "2",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "10"
+              },
+              "type": "terms"
+            },
+            {
+              "id": "3",
+              "settings": {
+                "filters": [
+                  {
+                    "label": "New connection",
+                    "query": "tcp-flags:S* AND NOT tcp-flags:*A*"
+                  },
+                  {
+                    "label": "Late packet",
+                    "query": "_exists_:tcp-flags AND NOT (tcp-flags:S* AND NOT tcp-flags:*A*)"
+                  },
+                  {
+                    "label": "Not TCP",
+                    "query": "NOT _exists_:tcp-flags"
+                  }
+                ]
+              },
+              "type": "filters"
+            },
+            {
+              "field": "src-ip-geo-country",
+              "id": "4",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "1",
+                "missing": "-"
+              },
+              "type": "terms"
+            },
+            {
+              "field": "interface",
+              "id": "5",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "3"
+              },
+              "type": "terms"
+            },
+            {
+              "field": "protocol-name",
+              "id": "6",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "3"
+              },
+              "type": "terms"
+            },
+            {
+              "field": "rule-number",
+              "id": "7",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "3"
+              },
+              "type": "terms"
+            },
+            {
+              "field": "dst-port",
+              "id": "8",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "5",
+                "missing": "-"
+              },
+              "type": "terms"
+            }
+          ],
+          "datasource": {
+            "type": "grafana-opensearch-datasource",
+            "uid": "${ESdataSource}"
+          },
+          "luceneQueryType": "Metric",
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "query": "action:\"block\" AND interface:$iface AND interface:$WAN AND src-ip:$src_ip AND source:$Host",
+          "queryType": "lucene",
+          "refId": "A",
+          "timeField": "timestamp"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${dataSource}"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"interface\" and r._field == \"status\" and\n    r.host =~ /^${Host:regex}$/)\n  |> last()\n  |> group()\n  |> keep(columns: [\"name\", \"friendlyname\"])\n  |> unique(column: \"name\")",
+          "refId": "B"
+        }
+      ],
+      "title": "Blocked from the Internet: Top Flows",
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "applyTo": {
+              "id": "byName",
+              "options": "interface"
+            },
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "name",
+                "handlerKey": "mappings.value"
+              },
+              {
+                "fieldName": "friendlyname",
+                "handlerKey": "mappings.text"
+              }
+            ]
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "desc": true,
+                "field": "Count"
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 15
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "src-ip": 0,
+              "src-ip-geo-country": 1,
+              "Count": 2,
+              "filter": 3,
+              "interface": 4,
+              "protocol-name": 5,
+              "dst-port": 6,
+              "rule-number": 7
+            },
+            "renameByName": {
+              "src-ip": "Source",
+              "src-ip-geo-country": "Country",
+              "interface": "Interface",
+              "protocol-name": "Protocol",
+              "dst-port": "Dst port",
+              "filter": "Kind",
+              "rule-number": "Rule",
+              "Count": "Blocks"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "description": "Blocked packets from your own devices: they arrived on a LAN, VLAN or VPN interface (the firewall log calls this direction \"in\" because the packet entered there; the destination is usually the internet). New connections here mean a device is being refused, for example by a missing pass rule or because it uses an address from another network. Kind: New connection = a connection attempt (TCP SYN) that was refused; Late packet = part of a connection the firewall no longer tracks (FIN, RST or ACK after the state ended), usually harmless; Not TCP = UDP or ICMP. Click a source to filter the whole Firewall row to it.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": false,
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false,
+            "minWidth": 1
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Source|src-ip)$"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show only this source",
+                    "url": "/d/${__dashboard.uid}?orgId=${__org.id}&${__url_time_range}&${Host:queryparam}&${iface:queryparam}&${WAN:queryparam}&${LAN:queryparam}&${dataSource:queryparam}&${ESdataSource:queryparam}&var-src_ip=${__value.raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 160
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Kind|filter)$"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "New connection": {
+                        "color": "orange",
+                        "index": 0
+                      },
+                      "Late packet": {
+                        "color": "text",
+                        "index": 1
+                      },
+                      "Not TCP": {
+                        "color": "text",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Blocks|Count)$"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.align",
+                "value": "right"
+              },
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Interface|interface)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 85
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Protocol|protocol-name)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 85
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Dst port|dst-port)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 75
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Rule|rule-number)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 55
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 113,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Blocks"
+          }
+        ]
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "bucketAggs": [
+            {
+              "field": "src-ip",
+              "id": "2",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "10"
+              },
+              "type": "terms"
+            },
+            {
+              "id": "3",
+              "settings": {
+                "filters": [
+                  {
+                    "label": "New connection",
+                    "query": "tcp-flags:S* AND NOT tcp-flags:*A*"
+                  },
+                  {
+                    "label": "Late packet",
+                    "query": "_exists_:tcp-flags AND NOT (tcp-flags:S* AND NOT tcp-flags:*A*)"
+                  },
+                  {
+                    "label": "Not TCP",
+                    "query": "NOT _exists_:tcp-flags"
+                  }
+                ]
+              },
+              "type": "filters"
+            },
+            {
+              "field": "interface",
+              "id": "5",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "3"
+              },
+              "type": "terms"
+            },
+            {
+              "field": "protocol-name",
+              "id": "6",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "3"
+              },
+              "type": "terms"
+            },
+            {
+              "field": "rule-number",
+              "id": "7",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "3"
+              },
+              "type": "terms"
+            },
+            {
+              "field": "dst-port",
+              "id": "8",
+              "settings": {
+                "min_doc_count": 1,
+                "order": "desc",
+                "orderBy": "_count",
+                "size": "5",
+                "missing": "-"
+              },
+              "type": "terms"
+            }
+          ],
+          "datasource": {
+            "type": "grafana-opensearch-datasource",
+            "uid": "${ESdataSource}"
+          },
+          "luceneQueryType": "Metric",
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "query": "action:\"block\" AND interface:$iface AND NOT interface:$WAN AND src-ip:$src_ip AND source:$Host",
+          "queryType": "lucene",
+          "refId": "A",
+          "timeField": "timestamp"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${dataSource}"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"interface\" and r._field == \"status\" and\n    r.host =~ /^${Host:regex}$/)\n  |> last()\n  |> group()\n  |> keep(columns: [\"name\", \"friendlyname\"])\n  |> unique(column: \"name\")",
+          "refId": "B"
+        }
+      ],
+      "title": "Blocked from Your Networks: Top Flows",
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "applyTo": {
+              "id": "byName",
+              "options": "interface"
+            },
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "name",
+                "handlerKey": "mappings.value"
+              },
+              {
+                "fieldName": "friendlyname",
+                "handlerKey": "mappings.text"
+              }
+            ]
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "desc": true,
+                "field": "Count"
+              }
+            ]
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 15
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "src-ip": 0,
+              "Count": 1,
+              "filter": 2,
+              "interface": 3,
+              "protocol-name": 4,
+              "dst-port": 5,
+              "rule-number": 6
+            },
+            "renameByName": {
+              "src-ip": "Source",
+              "interface": "Interface",
+              "protocol-name": "Protocol",
+              "dst-port": "Dst port",
+              "filter": "Kind",
+              "rule-number": "Rule",
+              "Count": "Blocks"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Mixed --"
+      },
+      "description": "The latest 50 blocked packets, newest first. Kind as in the flow tables, with the TCP flags in brackets. Click a source to filter the whole Firewall row to it.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "footer": {
+              "reducers": []
+            },
+            "inspect": false,
+            "minWidth": 1
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Source|src-ip)$"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Show only this source",
+                    "url": "/d/${__dashboard.uid}?orgId=${__org.id}&${__url_time_range}&${Host:queryparam}&${iface:queryparam}&${WAN:queryparam}&${LAN:queryparam}&${dataSource:queryparam}&${ESdataSource:queryparam}&var-src_ip=${__value.raw}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 160
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Kind|tcp-flags)$"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "regex",
+                    "options": {
+                      "pattern": "^(S[^A]*)$",
+                      "result": {
+                        "color": "orange",
+                        "index": 0,
+                        "text": "New connection ($1)"
+                      }
+                    }
+                  },
+                  {
+                    "type": "regex",
+                    "options": {
+                      "pattern": "^(.+)$",
+                      "result": {
+                        "color": "text",
+                        "index": 1,
+                        "text": "Late packet ($1)"
+                      }
+                    }
+                  },
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null",
+                      "result": {
+                        "color": "text",
+                        "index": 2,
+                        "text": "Not TCP"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^(Time|timestamp)$"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "id": 114,
+      "options": {
+        "cellHeight": "sm",
+        "showHeader": true
+      },
+      "pluginVersion": "13.2.2",
+      "targets": [
+        {
+          "bucketAggs": [],
+          "datasource": {
+            "type": "grafana-opensearch-datasource",
+            "uid": "${ESdataSource}"
+          },
+          "luceneQueryType": "RawData",
+          "metrics": [
+            {
+              "id": "1",
+              "settings": {
+                "order": "desc",
+                "size": "50",
+                "useTimeRange": true
+              },
+              "type": "raw_data"
+            }
+          ],
+          "query": "action:\"block\" AND interface:$iface AND src-ip:$src_ip AND source:$Host",
+          "queryType": "lucene",
+          "refId": "A",
+          "timeField": "timestamp"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "${dataSource}"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"interface\" and r._field == \"status\" and\n    r.host =~ /^${Host:regex}$/)\n  |> last()\n  |> group()\n  |> keep(columns: [\"name\", \"friendlyname\"])\n  |> unique(column: \"name\")",
+          "refId": "B"
+        }
+      ],
+      "title": "Recent Blocked Events on $iface",
+      "transformations": [
+        {
+          "id": "configFromData",
+          "options": {
+            "applyTo": {
+              "id": "byName",
+              "options": "interface"
+            },
+            "configRefId": "B",
+            "mappings": [
+              {
+                "fieldName": "name",
+                "handlerKey": "mappings.value"
+              },
+              {
+                "fieldName": "friendlyname",
+                "handlerKey": "mappings.text"
+              }
+            ]
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "timestamp",
+                "interface",
+                "protocol-name",
+                "src-ip",
+                "src-port",
+                "dst-ip",
+                "dst-port",
+                "tcp-flags",
+                "rule-number"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "timestamp": 0,
+              "interface": 1,
+              "protocol-name": 2,
+              "src-ip": 3,
+              "src-port": 4,
+              "dst-ip": 5,
+              "dst-port": 6,
+              "tcp-flags": 7,
+              "rule-number": 8
+            },
+            "renameByName": {
+              "timestamp": "Time",
+              "interface": "Interface",
+              "protocol-name": "Protocol",
+              "src-ip": "Source",
+              "src-port": "Src port",
+              "dst-ip": "Destination",
+              "dst-port": "Dst port",
+              "tcp-flags": "Kind",
+              "rule-number": "Rule"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 24
+        "y": 43
       },
       "id": 24,
       "panels": [],
@@ -1665,7 +2553,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 25
+        "y": 44
       },
       "id": 26,
       "maxDataPoints": 9000,
@@ -1801,7 +2689,7 @@
         "h": 10,
         "w": 16,
         "x": 8,
-        "y": 25
+        "y": 44
       },
       "id": 32,
       "options": {
@@ -1916,7 +2804,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 33
+        "y": 52
       },
       "id": 38,
       "maxDataPoints": 9000,
@@ -2020,7 +2908,7 @@
         "h": 6,
         "w": 16,
         "x": 8,
-        "y": 35
+        "y": 54
       },
       "id": 46,
       "options": {
@@ -2088,7 +2976,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 60
       },
       "id": 30,
       "panels": [],
@@ -2165,7 +3053,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 61
       },
       "id": 28,
       "options": {
@@ -2279,7 +3167,7 @@
         "h": 7,
         "w": 6,
         "x": 0,
-        "y": 46
+        "y": 65
       },
       "id": 34,
       "maxDataPoints": 9000,
@@ -2374,7 +3262,7 @@
         "h": 7,
         "w": 5,
         "x": 6,
-        "y": 46
+        "y": 65
       },
       "id": 36,
       "maxDataPoints": 9000,
@@ -2470,7 +3358,7 @@
         "h": 7,
         "w": 5,
         "x": 11,
-        "y": 46
+        "y": 65
       },
       "hideTimeOverride": true,
       "id": 40,
@@ -2594,7 +3482,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 46
+        "y": 65
       },
       "id": 42,
       "maxDataPoints": 9000,
@@ -2656,7 +3544,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 72
       },
       "id": 48,
       "panels": [],
@@ -2733,7 +3621,7 @@
         "h": 4,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 73
       },
       "id": 52,
       "options": {
@@ -2846,7 +3734,7 @@
         "h": 7,
         "w": 6,
         "x": 0,
-        "y": 58
+        "y": 77
       },
       "id": 49,
       "maxDataPoints": 9000,
@@ -2944,7 +3832,7 @@
         "h": 7,
         "w": 5,
         "x": 6,
-        "y": 58
+        "y": 77
       },
       "id": 51,
       "maxDataPoints": 9000,
@@ -3044,7 +3932,7 @@
         "h": 7,
         "w": 5,
         "x": 11,
-        "y": 58
+        "y": 77
       },
       "hideTimeOverride": true,
       "id": 50,
@@ -3193,7 +4081,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 58
+        "y": 77
       },
       "id": 53,
       "maxDataPoints": 9000,

@@ -17,7 +17,10 @@ see [Credits and history](#credits-and-history).
 - Gateway round-trip time and loss (dpinger)
 - Interfaces with IPv4/IPv6 addresses, subnet, MAC, status and OPNsense description
 - WAN and LAN traffic and throughput
-- Firewall blocks: events, ports, protocols, top source IP and a GeoIP map
+- Firewall blocks: events, ports, protocols and a GeoIP map; the top blocked
+  flows, split into traffic from the internet and from your own networks
+  (source, OPNsense interface name, port, rule, and whether it was a new
+  connection or a late packet); the latest blocked events; click a source to filter the row to it
 - Suricata alerts (separate dashboard)
 
 ![OPNsense dashboard](docs/images/opnsense.png)

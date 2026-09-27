@@ -217,7 +217,7 @@ def run(dash, name):
 main = json.loads((ROOT / "grafana/dashboards/opnsense.json").read_text())
 suricata = json.loads((ROOT / "grafana/dashboards/opnsense-suricata.json").read_text())
 found = run(main, "OPNsense")
-run(suricata, "Suricata")
+found_suricata = run(suricata, "Suricata")
 
 if MODE == "full" and not failures:
     expected = json.loads(os.environ["E2E_EXPECTED"])
@@ -266,6 +266,12 @@ if MODE == "full" and not failures:
     if not 1 <= len(events) <= 50 or {e.get("src-ip") for e in events} - sources or stamps != sorted(stamps, reverse=True):
         failures.append(f"panel 114 (recent blocked events): {len(events)} rows, sources "
                         f"{sorted({e.get('src-ip') for e in events})}, want newest first and only {sorted(sources)}")
+
+if not failures:
+    # The seed also writes a DNS record (proto UDP); the Suricata panels count alerts only.
+    protocols = set(strings(found_suricata[507]))
+    if protocols != {"TCP"}:
+        failures.append(f"Suricata Protocols counts non-alert records: {sorted(protocols)}, want ['TCP']")
 
 if MODE == "metrics-only":
     status, _ = api("/api/health")

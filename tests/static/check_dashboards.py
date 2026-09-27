@@ -219,6 +219,16 @@ for p in [P[pid] for pid in flows] + events:
 need(not any(p["type"] == "stat" and "src-ip" in json.dumps(p.get("targets")) and "terms" in json.dumps(p.get("targets"))
              for p in walk(main["panels"])), "a stat panel ranking source IPs hides their context")
 
+# Suricata panels read alerts only. os-telegraf's Intrusion Detection Alerts input
+# tails all of eve.json (TLS, HTTP, DNS and flow records too, with ports as tags);
+# filtering on the event_type tag keeps InfluxDB from scanning those series.
+for p in walk(suricata["panels"]):
+    for t in p.get("targets") or []:
+        q = text(t)
+        if '"suricata"' in q:
+            need(re.search(r'r(\["event_type"\]|\.event_type) == "alert"', q),
+                 f"Suricata panel {p['id']}: filter event_type == \"alert\" (eve.json holds more than alerts)")
+
 # Suricata alert log columns (#22).
 q241 = text(SP[241]["targets"][0])
 need("alert_action" in q241 and "alert_signature_id" in q241, "Suricata Alert Logs must include action and SID (#22)")

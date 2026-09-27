@@ -6,6 +6,17 @@ upstream repository bsmithio/OPNsense-Dashboard, where they were reported.
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-09-28
+
+### Fixed
+- Suricata dashboard: every query reads alerts only (`event_type == "alert"`).
+  os-telegraf's Intrusion Detection Alerts input stores every record in
+  `eve.json`, so with Suricata's EVE HTTP or TLS logging on, the Protocols
+  panel counted non-alert records and the queries scanned so many series that
+  they timed out.
+- Documented keeping EVE HTTP and TLS logging off, and how to remove TLS and
+  HTTP records that are already stored.
+
 ## [2.1.0] - 2026-09-28
 
 ### Dashboards
@@ -113,7 +124,8 @@ stack (Graylog 5, Elasticsearch 7.10, Grafana 9) is not carried over.
 | 2021-04 | Gateway status collected natively in PHP (VictorRobellini/pfSense-Dashboard) |
 | 2020-04 | pfSense-Dashboard first published by Victor Robellini |
 
-[Unreleased]: https://github.com/tekgnosis-net/OPNsense-Dashboard/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/tekgnosis-net/OPNsense-Dashboard/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v2.1.1
 [2.1.0]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v2.1.0
 [2.0.1]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v2.0.1
 [2.0.0]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v2.0.0

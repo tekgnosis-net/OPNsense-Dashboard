@@ -115,6 +115,12 @@ System > Settings > Logging > Remote, then add a destination:
    Administration.
 2. Tick **Intrusion Detection Alerts** on the Telegraf Input tab. Telegraf
    then reads `/var/log/suricata/eve.json`.
+3. Leave Suricata's EVE **HTTP** and **TLS** logging off (Administration,
+   advanced settings; both are off by default). Telegraf's input stores every
+   record in `eve.json` with its ports as tags, and HTTP or TLS logging adds a
+   record for nearly every connection. The dashboard only uses alerts, and
+   InfluxDB can run out of memory
+   ([troubleshooting](troubleshooting.md#suricata-dashboard-is-slow-or-times-out)).
 
 No extra files are needed. OPNsense 26.1 removed the `custom.yaml` hook that
 earlier versions of this project used.

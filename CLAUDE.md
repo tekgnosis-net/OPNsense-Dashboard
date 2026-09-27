@@ -34,7 +34,7 @@ sh tests/e2e/run.sh       # full stack in Docker with synthetic data; every dash
 
 - **Metrics.** os-telegraf runs as root (Network, PF and default inputs). `custom.conf` runs `opnsense/bin/telegraf_pfifgw.php` (`interface`, `gateways`) and `telegraf_temperature.sh` (`temperature`); data goes to InfluxDB 2.9; dashboards read it with Flux. Telegraf adds the `host` tag; the scripts must not print one.
 - **Firewall log.** OPNsense remote syslog (RFC5424, required) → Graylog 7.1 UDP 1514 → six regex extractors whose CSV headers match filterlog 0.9 (`tests/lib/filterlog.py` is the reference layout; ICMPv6 is logged as `ipv6-icmp`) → stream `OPNsense / filterlog` (`application_name` CONTAINS `filterlog`) → GeoIP pipeline (`src-ip-geo-country` only) → OpenSearch 2.19 index set `opnsense_filterlog` → Lucene queries through the OpenSearch plugin.
-- **Suricata.** os-telegraf's Intrusion Detection Alerts input → `suricata` measurement → Suricata dashboard.
+- **Suricata.** os-telegraf's Intrusion Detection Alerts input → `suricata` measurement → Suricata dashboard. The input tails all of `eve.json` (every event type, ports as tags); every Suricata query filters `event_type == "alert"`, and the docs tell users to keep EVE HTTP/TLS logging off.
 
 The plugin uses only these OPNsense internals (core 26.7.4): `get_configured_interface_with_descr`, `get_real_interface`, `legacy_interfaces_details`, `interfaces_primary_address[6]`, `dpinger_status`, `\OPNsense\Routing\Gateways::gatewaysIndexedByName`. When they change, update `tests/php/stubs/` from core source for the target release.
 

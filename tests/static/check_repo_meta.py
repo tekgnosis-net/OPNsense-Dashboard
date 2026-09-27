@@ -61,6 +61,9 @@ need("docs/troubleshooting.md", "passwords must be between 8 and 72", "password_
 # the fix is the *_PORT settings (and GRAYLOG_EXTERNAL_URI to match GRAYLOG_PORT).
 need("docs/troubleshooting.md", "port is already allocated", "GRAFANA_PORT", "INFLUXDB_PORT",
      "GRAYLOG_EXTERNAL_URI")
+# os-telegraf's IDS input stores all of eve.json; HTTP/TLS logging floods InfluxDB.
+need("docs/opnsense.md", "HTTP", "TLS", "suricata-dashboard-is-slow-or-times-out")
+need("docs/troubleshooting.md", "## Suricata dashboard is slow or times out", 'event_type="tls"')
 
 def forbid(path, pattern, why):
     text = (ROOT / path).read_text()

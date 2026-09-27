@@ -93,7 +93,7 @@
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\" and r[\"event_type\"] == \"alert\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
           "refId": "A"
         }
       ],
@@ -159,7 +159,7 @@
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"src_ip\"]}))\n  |> group(columns: [\"src_ip\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\" and r[\"event_type\"] == \"alert\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"src_ip\"]}))\n  |> group(columns: [\"src_ip\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
           "refId": "A"
         }
       ],
@@ -226,7 +226,7 @@
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"dest_port\"]}))\n  |> group(columns: [\"dest_port\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n: 10)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\" and r[\"event_type\"] == \"alert\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"dest_port\"]}))\n  |> group(columns: [\"dest_port\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n: 10)",
           "refId": "A"
         }
       ],
@@ -296,7 +296,7 @@
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"proto\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\" and r[\"event_type\"] == \"alert\")\n  |> filter(fn: (r) => r[\"_field\"] == \"proto\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])",
           "refId": "A"
         }
       ],
@@ -361,7 +361,7 @@
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_signature\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\" and r[\"event_type\"] == \"alert\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_signature\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
           "refId": "A"
         }
       ],
@@ -426,7 +426,7 @@
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"dest_ip\"]}))\n  |> group(columns: [\"dest_ip\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\" and r[\"event_type\"] == \"alert\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"dest_ip\"]}))\n  |> group(columns: [\"dest_ip\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:1)",
           "refId": "A"
         }
       ],
@@ -495,7 +495,7 @@
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:10)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\" and r[\"event_type\"] == \"alert\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_category\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:10)",
           "refId": "A"
         }
       ],
@@ -590,7 +590,7 @@
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_signature\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:10)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"suricata\" and r[\"event_type\"] == \"alert\")\n  |> filter(fn: (r) => r[\"_field\"] == \"alert_signature\")\n  |> map(fn: (r) => ({ r with _count: r[\"_value\"]}))\n  |> group(columns: [\"_value\"])\n  |> count(column: \"_count\")\n  |> group()\n  |> sort(desc:true, columns: [\"_count\"])\n  |> limit(n:10)",
           "refId": "A"
         }
       ],
@@ -724,7 +724,7 @@
             "type": "influxdb",
             "uid": "${dataSource}"
           },
-          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"suricata\")\n  |> filter(fn: (r) => r._field == \"alert_signature\" or r._field == \"alert_action\" or r._field == \"alert_signature_id\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 100)",
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"suricata\" and r.event_type == \"alert\")\n  |> filter(fn: (r) => r._field == \"alert_signature\" or r._field == \"alert_action\" or r._field == \"alert_signature_id\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 100)",
           "refId": "A"
         }
       ],

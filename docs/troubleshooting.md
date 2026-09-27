@@ -107,6 +107,32 @@ happening.
 - To generate test alerts, [tmNIDS](https://github.com/3CORESec/testmynids.org)
   triggers common signatures. It needs `bash` (`pkg install bash`).
 
+## Suricata dashboard is slow or times out
+
+InfluxDB also uses a lot of memory and CPU. os-telegraf's Intrusion Detection
+Alerts input writes every record in `eve.json`, not only alerts, and tags each
+with its ports, so every connection Suricata logs becomes new InfluxDB series.
+
+- **Check what arrives.** In Grafana > Explore (InfluxDB), run:
+  ```
+  from(bucket: v.defaultBucket)
+    |> range(start: -10m)
+    |> filter(fn: (r) => r._measurement == "suricata" and r._field == "proto")
+    |> group(columns: ["event_type"])
+    |> count()
+  ```
+  Mostly `tls` or `http` means Suricata's EVE HTTP or TLS logging is on.
+- **Turn that logging off** in Services > Intrusion Detection > Administration
+  (advanced settings), unless another tool needs those logs. Both are off by
+  default.
+- **Remove what is already stored,** once per event type (`tls`, `http`). The
+  data is deleted for good; otherwise it ages out with `INFLUXDB_RETENTION`.
+  ```sh
+  docker compose exec influxdb influx delete --bucket opnsense \
+    --start 1970-01-01T00:00:00Z --stop 2100-01-01T00:00:00Z \
+    --predicate '_measurement="suricata" AND event_type="tls"'
+  ```
+
 ## Monitoring host
 
 - **mongodb exits with code 132 or logs an AVX warning.** The CPU lacks AVX.

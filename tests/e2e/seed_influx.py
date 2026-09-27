@@ -68,6 +68,10 @@ def points(ts):
                        f'alert_signature="ET SCAN Suspicious inbound to MSSQL port 1433",'
                        f'alert_category="Potentially Bad Traffic",alert_action="allowed",'
                        f'alert_signature_id="2010935",proto="TCP" {ts}')
+            # eve.json holds more than alerts; the Suricata dashboard must ignore this one.
+            out.append(f"suricata,{h},event_type=dns,src_ip=192.168.1.50,src_port=53124,dest_ip=192.168.1.1,"
+                       f"dest_port=53,path=/var/log/suricata/eve.json "
+                       f'dns_queries_0_rrname="example.org",dns_type="query",proto="UDP" {ts}')
     return out
 
 

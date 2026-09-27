@@ -24,9 +24,15 @@ need("LICENSE", "MIT License", "tekgnosis-net")
 need("NOTICE", "VictorRobellini/pfSense-Dashboard", "bsmithio/OPNsense-Dashboard",
      "without a license", "48119ee")
 need("README.md", "## Credits and history", "NOTICE", "LICENSE", "docs/opnsense.md", "docs/stack.md")
-for name in ("bug_report.yml", "enhancement.yml", "question.yml", "config.yml"):
+for name in ("bug_report.yml", "enhancement.yml", "config.yml"):
     need(f".github/ISSUE_TEMPLATE/{name}")
-need(".github/ISSUE_TEMPLATE/config.yml", "blank_issues_enabled: false")
+# Questions go to Discussions Q&A, where answers can be marked and searched,
+# not to the issue tracker.
+QA = "https://github.com/tekgnosis-net/OPNsense-Dashboard/discussions/categories/q-a"
+need(".github/ISSUE_TEMPLATE/config.yml", "blank_issues_enabled: false", QA)
+need("README.md", QA)
+if (ROOT / ".github/ISSUE_TEMPLATE/question.yml").exists():
+    errors.append("question.yml: questions go to Discussions Q&A (contact link in config.yml)")
 need(".github/pull_request_template.md", "tests/run-static.sh", "tests/run-unit.sh")
 need("CLAUDE.md", "tests/run-static.sh", "opnsense/bin/telegraf_pfifgw.php")
 
@@ -34,6 +40,12 @@ need("docs/opnsense.md", "Run as Root", "RFC5424", "Intrusion Detection Alerts",
      "telegraf --test", "opnsense/ansible", "Thermal Sensors")
 
 need("CHANGELOG.md", "## [2.0.0]", "### Planned (2.1)", "CARP", "bsmithio/OPNsense-Dashboard")
+# Each released version heading links to its GitHub release (tag vX.Y.Z).
+changelog = (ROOT / "CHANGELOG.md").read_text()
+for version in re.findall(r"^## \[(\d+\.\d+\.\d+)\]", changelog, re.M):
+    link = f"[{version}]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v{version}"
+    if link not in changelog:
+        errors.append(f"CHANGELOG.md: missing link definition {link}")
 need("docs/troubleshooting.md", "RFC5424", "Run as Root", "AVX", "GRAYLOG_JOURNAL_MAX_SIZE",
      "pluginctl -r return_gateways_status", "reset-admin-password", "visudo", "Index not found")
 need("README.md", "## Supported versions", "## How it works", "```mermaid", "CHANGELOG.md",

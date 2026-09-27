@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The project uses
 [Semantic Versioning](https://semver.org/). Issue numbers (#n) refer to the
 upstream repository bsmithio/OPNsense-Dashboard, where they were reported.
 
+## [Unreleased]
+
+### Project
+- Questions and setup help go to GitHub Discussions (Q&A); the Question issue
+  form is retired.
+
 ## [2.0.1] - 2026-09-27
 
 ### Fixed
@@ -88,3 +94,7 @@ stack (Graylog 5, Elasticsearch 7.10, Grafana 9) is not carried over.
 | 2021-11 | OPNsense port, Graylog content pack, Flux queries with `v.defaultBucket` |
 | 2021-04 | Gateway status collected natively in PHP (VictorRobellini/pfSense-Dashboard) |
 | 2020-04 | pfSense-Dashboard first published by Victor Robellini |
+
+[Unreleased]: https://github.com/tekgnosis-net/OPNsense-Dashboard/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v2.0.1
+[2.0.0]: https://github.com/tekgnosis-net/OPNsense-Dashboard/releases/tag/v2.0.0

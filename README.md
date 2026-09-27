@@ -148,6 +148,12 @@ The firewall-side exec timeout (`timeout = "10s"`) lives in
 - [docs/stack.md](docs/stack.md): monitoring host setup (Docker stack, Graylog, Grafana)
 - [docs/troubleshooting.md](docs/troubleshooting.md)
 
+## Help and feedback
+
+- Questions and setup help: [Discussions Q&A](https://github.com/tekgnosis-net/OPNsense-Dashboard/discussions/categories/q-a)
+- Bugs and feature requests: [issues](https://github.com/tekgnosis-net/OPNsense-Dashboard/issues/new/choose)
+- Ideas, and your own dashboards and setups: [Discussions](https://github.com/tekgnosis-net/OPNsense-Dashboard/discussions)
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md). Coming from bsmithio/OPNsense-Dashboard?

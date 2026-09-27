@@ -153,6 +153,56 @@ for pid in (28, 32, 46, 52):
     steps = P[pid]["fieldConfig"]["defaults"].get("thresholds", {}).get("steps", [])
     need(bool(steps) and steps[0].get("color") == "text", f"panel {pid}: base threshold colour must be 'text' (#25)")
 
+# Firewall row: a blocked source is shown with what it tried and which way it
+# came. The old "Top IP Blocked" stat showed one address and nothing else, so a
+# LAN host failing outbound looked like an attacker. filterlog's direction is
+# relative to the interface (nearly every block is "in"), so origin comes from
+# the interface: WAN interfaces = from the internet, the rest = your networks.
+KIND = {  # from filterlog tcp-flags; the events table's value mappings mirror it
+    "New connection": "tcp-flags:S* AND NOT tcp-flags:*A*",
+    "Late packet": "_exists_:tcp-flags AND NOT (tcp-flags:S* AND NOT tcp-flags:*A*)",
+    "Not TCP": "NOT _exists_:tcp-flags",
+}
+flows = {}
+for p in walk(main["panels"]):
+    for t in p.get("targets") or []:
+        aggs = t.get("bucketAggs") or []
+        terms = {a.get("field"): a for a in aggs if a.get("type") == "terms"}
+        if "src-ip" not in terms:
+            continue
+        pid, q = p["id"], text(t)
+        flows[pid] = q
+        need(p["type"] == "table", f"panel {pid}: a blocked-source ranking must be a table with its context")
+        for field in ("interface", "protocol-name", "dst-port", "rule-number"):
+            need(field in terms, f"panel {pid}: blocked flows must also group by {field}")
+        kinds = [a for a in aggs if a.get("type") == "filters"]
+        need(bool(kinds) and {f.get("label"): f.get("query") for f in kinds[0]["settings"]["filters"]} == KIND,
+             f"panel {pid}: Kind must be the filters aggregation {KIND}")
+        # The plugin reads leaf buckets as an array; filters buckets are a map and vanish there.
+        need(bool(aggs) and aggs[-1].get("type") == "terms", f"panel {pid}: the last bucket aggregation must be terms")
+        need((terms.get("dst-port") or {}).get("settings", {}).get("missing") == "-",
+             f"panel {pid}: dst-port needs missing \"-\" or ICMP blocks drop out of the counts")
+        need("$dst_port" not in q, f"panel {pid}: $dst_port's All value (*) drops ICMP blocks")
+        need("src-ip:$src_ip" in q, f"panel {pid}: must follow the $src_ip drill-down")
+        links = json.dumps(p["fieldConfig"])
+        need("var-src_ip=${__value.raw}" in links and "${Host:queryparam}" in links,
+             f"panel {pid}: clicking a source must set $src_ip and keep the Host")
+need(sorted("NOT interface:$WAN" in q for q in flows.values()) == [False, True]
+     and all("interface:$WAN" in q for q in flows.values()),
+     "Firewall row needs one flows table for interface:$WAN and one for NOT interface:$WAN")
+events = [p for p in walk(main["panels"])
+          if any((t.get("metrics") or [{}])[0].get("type") == "raw_data" for t in p.get("targets") or [])]
+need(len(events) == 1 and events[0]["type"] == "table", "Firewall row needs one Recent Blocked Events table (raw data)")
+if events:
+    q = text(events[0]["targets"][0])
+    need('action:"block"' in q and "src-ip:$src_ip" in q and "$dst_port" not in q,
+         "Recent Blocked Events: blocked only, follow $src_ip, no $dst_port")
+    mapped = json.dumps(events[0]["fieldConfig"])
+    need(all(k in mapped for k in KIND) and "^(S[^A]*)$" in mapped,
+         "Recent Blocked Events: tcp-flags must map to the same Kind names (new = S without A)")
+need(not any(p["type"] == "stat" and "src-ip" in json.dumps(p.get("targets")) and "terms" in json.dumps(p.get("targets"))
+             for p in walk(main["panels"])), "a stat panel ranking source IPs hides their context")
+
 # Suricata alert log columns (#22).
 q241 = text(SP[241]["targets"][0])
 need("alert_action" in q241 and "alert_signature_id" in q241, "Suricata Alert Logs must include action and SID (#22)")

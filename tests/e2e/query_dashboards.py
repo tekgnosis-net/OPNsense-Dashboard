@@ -4,7 +4,8 @@ Grafana's /api/ds/query with the template variables resolved (spec §6.4).
 
   query_dashboards.py full          every query returns data; plus host
                                     isolation (#33), traffic direction
-                                    (8fa23f1), map countries, protocols
+                                    (8fa23f1), map countries, protocols,
+                                    blocked flows per origin and Kind
   query_dashboards.py metrics-only  Flux queries return data; OpenSearch
                                     queries fail cleanly
 
@@ -27,7 +28,7 @@ import seed_influx  # noqa: E402
 
 DATASOURCES = {"${dataSource}": ("influxdb", "influxdb-opnsense"),
                "${ESdataSource}": ("grafana-opensearch-datasource", "opensearch-opnsense")}
-SELECTED = {"Host": ["fw-a.example.lan"], "iface": ["igb0"]}  # every other variable: All
+SELECTED = {"Host": ["fw-a.example.lan"], "iface": ["igb0", "igb1"]}  # every other variable: All
 REGEX_SPECIAL = re.compile(r"([\\^$*+?.()|\[\]{}/])")
 LUCENE_SPECIAL = re.compile(r'([+\-=&|><!(){}\[\]^"~*?:\\/ ])')
 MODE = sys.argv[1] if len(sys.argv) > 1 else "full"
@@ -101,6 +102,15 @@ def strings(frames):
         for field, values in zip(f["schema"]["fields"], f["data"].get("values", [])):
             if field.get("type") == "string":
                 out += [v for v in values if v is not None]
+    return out
+
+
+def records(frames):
+    """Rows of table frames as dicts keyed by field name."""
+    out = []
+    for f in frames:
+        names = [x["name"] for x in f["schema"]["fields"]]
+        out += [dict(zip(names, row)) for row in zip(*f["data"].get("values", []))]
     return out
 
 
@@ -230,6 +240,27 @@ if MODE == "full" and not failures:
     protocols = label_values(found[65], "protocol-name")
     if not {"tcp", "udp", "icmp", "ipv6-icmp"} <= protocols:
         failures.append(f"protocols: {sorted(protocols)}")
+    # Blocked flows (112 from the internet, 113 from your networks): one row per
+    # source here, so the rows must equal what send_syslog.py sent. This also
+    # proves ICMP keeps its rows (dst-port missing "-") and Kind is a partition.
+    for pid, origin in ((112, "internet"), (113, "networks")):
+        got = {r.get("src-ip"): [r.get("filter"), r.get("dst-port"), r.get("interface"), int(r.get("Count") or 0)]
+               for r in records(found[pid])}
+        want = expected["flows"][origin]
+        if len(records(found[pid])) != len(got) or got != want:
+            failures.append(f"panel {pid} ({origin} flows): {records(found[pid])}, want {want}")
+        if any(r.get("rule-number") != "96" for r in records(found[pid])):
+            failures.append(f"panel {pid}: rule-number column missing or wrong")
+    countries = {r.get("src-ip"): r.get("src-ip-geo-country") for r in records(found[112])}
+    if countries != {"2.125.160.216": "GB", "89.160.20.112": "SE", "216.160.83.56": "US",
+                     "2001:218::1": "JP", "2001:220::1": "KR"}:
+        failures.append(f"panel 112: countries {countries}")
+    events = records(found[114])
+    sources = set(expected["flows"]["internet"]) | set(expected["flows"]["networks"])
+    stamps = [e.get("timestamp") for e in events]
+    if not 1 <= len(events) <= 50 or {e.get("src-ip") for e in events} - sources or stamps != sorted(stamps, reverse=True):
+        failures.append(f"panel 114 (recent blocked events): {len(events)} rows, sources "
+                        f"{sorted({e.get('src-ip') for e in events})}, want newest first and only {sorted(sources)}")
 
 if MODE == "metrics-only":
     status, _ = api("/api/health")

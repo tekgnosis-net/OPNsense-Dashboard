@@ -67,6 +67,27 @@ reach InfluxDB, does the syslog reach Graylog, and does Grafana query it?
   ([grafana/opensearch-datasource#888](https://github.com/grafana/opensearch-datasource/issues/888)),
   but queries and dashboards work. Don't change the index pattern.
 
+## One of my own devices is the top blocked source
+
+Find it in **Blocked from Your Networks**; the Kind column says what is
+happening.
+
+- **Late packet.** These are packets of connections the firewall had already
+  closed: FIN, RST or ACK arriving after the state ended. They are common with
+  long-lived connections such as messaging, push notifications or
+  Microsoft 365. Nothing is broken and no rule is needed.
+- **New connection.** The device's connection attempts are being refused.
+  Click the source to see only its blocks, then check the Rule number. On the
+  firewall, Firewall > Log Files > Live View shows the rule's description, or
+  run `pfctl -vvsr | grep -A1 '^@<rule> '` as root. Rule numbers change when
+  the rules reload. Typical causes:
+  - **The source address belongs to a different network than the Interface
+    column.** The device got its address from another VLAN, so a switch port
+    or access point is mixing two networks. Fix the VLAN or SSID mapping; a
+    pass rule would only hide the problem.
+  - **The interface has no pass rule for that address family.** An example is
+    IPv6 on a VLAN whose rules only cover IPv4.
+
 ## WAN panels empty after renaming or re-assigning interfaces
 
 - WAN is every interface whose OPNsense description starts with "WAN" (#81,

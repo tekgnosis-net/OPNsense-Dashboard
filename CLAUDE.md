@@ -26,7 +26,7 @@ sh tests/run-unit.sh      # router scripts against OPNsense 26.7.4-shaped stubs 
 sh tests/e2e/run.sh       # full stack in Docker with synthetic data; every dashboard query
 ```
 
-- **End-to-end suite:** compose project `opnsense-dash-test`, loopback ports 13000 (Grafana), 18086 (InfluxDB), 19000 (Graylog), 11514/udp (syslog), about 4 GB RAM, cleans up with `down -v`. `E2E_KEEP=1` leaves the stack running; `E2E_SCREENSHOTS=1` refreshes `docs/images/`. Never touch other compose projects on the host. `tests/e2e/stack_smoke.sh` is the provisioning-only subset.
+- **End-to-end suite:** compose project `opnsense-dash-test`, loopback ports 13000 (Grafana), 18086 (InfluxDB), 19000 (Graylog), 11514/udp (syslog), about 4 GB RAM, cleans up with `down -v`. `E2E_KEEP=1` leaves the stack running; `E2E_SCREENSHOTS=1` refreshes `docs/images/` and checks in the browser what the firewall tables render, including an IPv6 `$src_ip` drill-down. Never touch other compose projects on the host. `tests/e2e/stack_smoke.sh` is the provisioning-only subset.
 - **Router side on real hardware:** run the Ansible playbook and `telegraf --test --config /usr/local/etc/telegraf.conf --config-directory /usr/local/etc/telegraf.d` on an OPNsense 26.7 router **as root**; unit tests only prove the scripts against stubs.
 - **After visual dashboard changes,** look at the `E2E_SCREENSHOTS=1` images: a query can return data while a panel renders nothing.
 
@@ -53,6 +53,7 @@ The plugin uses only these OPNsense internals (core 26.7.4): `get_configured_int
 - `WAN`, `LAN`, `iface` return `device|description`; the variable regex `/^(?<value>[^|]+)\|(?<text>.*)$/` splits them. WAN = description starting with "WAN".
 - Rate graphs use `aggregateWindow(..., timeSrc: "_start")` before `derivative()`; the default `_stop` stamps the truncated last window at "now" and draws a false spike at the right edge.
 - The Geomap needs the country column: no `reduce` transform on panel 59.
+- Firewall flow tables (112 internet = `interface:$WAN`, 113 networks = `NOT interface:$WAN`) nest terms `src-ip` → filters "Kind" → … → terms `dst-port` (`missing: "-"`). Keep a terms aggregation last: the plugin reads leaf buckets as an array and silently drops filters buckets there. Don't filter them on `$dst_port`: its All value `*` drops ICMP. Kind definitions live in `check_dashboards.py` (`KIND`); the events table (114) mirrors them as value mappings on `tcp-flags`.
 - `tests/static/check_dashboards.py` holds the invariants (each names the upstream issue it protects).
 
 ## Stack
